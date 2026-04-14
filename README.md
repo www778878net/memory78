@@ -1,68 +1,10 @@
 # Memory78 CLI
 
----
+**[English](README_EN.md) | 中文**
 
-## 给 AI 编码助手的使用指南
+高性能本地知识库引擎，用于管理代码知识和项目记忆。
 
-### 1. 下载 CLI
-
-从 GitHub Release 下载 m78.exe：
-
-```
-https://github.com/www778878net/memory78/releases/latest
-```
-
-**Windows:** 下载 `m78.exe`，放到项目目录或 PATH 中。
-
-### 2. 验证安装
-
-```bash
-m78 --help
-```
-
-如果命令不可用，使用绝对路径：
-```bash
-# 替换为实际路径
-D:\path\to\m78.exe --help
-```
-
-### 3. 常用命令
-
-```bash
-# 添加记忆（自动分类）
-m78 add "标题" "内容"
-
-# 搜索记忆
-m78 search "关键词"
-
-# 列出记忆
-m78 list
-
-# 获取详情
-m78 get <id或标题>
-
-# 删除记忆
-m78 delete <id或标题>
-
-# 导入已有文件
-m78 import
-
-# 每日日志
-m78 daily "日志内容"
-```
-
-### 4. 四级分类
-
-记忆按 `{apisys}/{apimicro}/{apiobj}/{title}.md` 存储：
-- `apisys`: 大系统（如 project, steam）
-- `apimicro`: 微服务（如 api, workflow）
-- `apiobj`: 实体/类（如 user, config）
-
----
-
-## 中文版
-
-### 为什么需要 Memory78？
+## 为什么需要 Memory78？
 
 | 痛点 | Memory78 解决方案 |
 |------|------------------|
@@ -71,13 +13,13 @@ m78 daily "日志内容"
 | 记忆保存不直观 | 自动分类存储，用户只输入内容即可 |
 | 知识无法形成体系 | SQLite + 文件双存储，结构化组织 |
 
-### 安装
+## 安装
 
 从 [Releases](https://github.com/www778878net/memory78/releases) 下载对应平台可执行文件。
 
 **Windows:** 下载 `m78.exe`，放到项目目录或添加到 PATH。
 
-### 基本用法
+## 快速开始
 
 ```bash
 # 添加记忆（自动分类）
@@ -111,9 +53,58 @@ m78 export
 m78 daily "今日工作内容"
 ```
 
-### 命令详解
+## 核心功能
 
-#### add - 添加记忆
+### 1. 智能搜索（节省 Token）
+
+```bash
+# QMD 模式：只返回相关片段，节省 75-95% Token
+m78 search "base78" --mode qmd
+
+# FTS5 全文搜索
+m78 search "关键词"
+
+# 语义搜索（向量相似度）
+m78 search "关键词" --mode semantic
+```
+
+### 2. 四级分类存储
+
+记忆按 `{apisys}/{apimicro}/{apiobj}/{title}.md` 自动组织：
+
+```
+memory78/
+├── project/           # apisys: 大系统
+│   ├── api/           # apimicro: 微服务
+│   │   ├── user/      # apiobj: 实体/类
+│   │   │   └── 登录设计.md
+│   │   └── config/
+│   │       └── 数据库配置.md
+│   └── workflow/
+│       └── 订单流程.md
+└── steam/
+    └── buff/
+        └── 价格策略.md
+```
+
+### 3. 自动分类（name78 算法）
+
+```bash
+# 不用指定分类，自动识别
+m78 add "API设计" "用户认证使用JWT..." 
+# → 自动分类为 project/api/api_design
+
+# 也可以手动指定
+m78 add "配置说明" "数据库配置..." project config db
+```
+
+### 4. AI 编码助手集成
+
+配置为 Claude Skill 后，AI 自动管理知识。
+
+## 命令详解
+
+### add - 添加记忆
 
 ```bash
 m78 add "标题" "内容" [apisys] [apimicro] [apiobj]
@@ -124,7 +115,7 @@ m78 add "标题" "内容" [apisys] [apimicro] [apiobj]
 --tags <tag1> <tag2> ...                 自定义标签
 ```
 
-#### search - 搜索记忆
+### search - 搜索记忆
 
 ```bash
 m78 search "关键词"
@@ -138,20 +129,24 @@ m78 search "关键词"
 --mode <text|semantic|qmd>  搜索模式
 ```
 
-#### list - 列出记忆
+### list - 列出记忆
 
 ```bash
 m78 list --limit 10 --order desc
 ```
 
-### 数据存储
+### get / delete / import / export / daily
+
+详见 `--help`。
+
+## 数据存储
 
 | 存储方式 | 路径 | 说明 |
 |---------|------|------|
 | 数据库 | `memory78/memory78.db` | SQLite + FTS5 全文索引 |
 | 文件 | `memory78/{apisys}/{apimicro}/{apiobj}/{title}.md` | Markdown/JSON |
 
-### 搜索模式对比
+## 搜索模式对比
 
 | 模式 | 用途 | Token 消耗 |
 |------|------|-----------|
@@ -159,108 +154,13 @@ m78 list --limit 10 --order desc
 | semantic | 向量相似度 | 完整文档 |
 | qmd | 片段索引 + LLM 重排序 | **节省 75-95%** |
 
----
+## 四级分类说明
 
-## English Version
-
-### Why Memory78?
-
-| Problem | Memory78 Solution |
-|---------|------------------|
-| AI reads full documents every time | QMD smart search returns only relevant fragments, saves 75-95% tokens |
-| Knowledge scattered everywhere | 4-level classification structure for quick navigation |
-| Memory saving not intuitive | Auto-classification, just input content |
-| Knowledge not organized | SQLite + file dual storage |
-
-### Installation
-
-Download from [Releases](https://github.com/www778878net/memory78/releases).
-
-**Windows:** Download `m78.exe`, place in project directory or add to PATH.
-
-### Basic Usage
-
-```bash
-# Add memory (auto-classified)
-m78 add "API Design" "User authentication using JWT..."
-
-# Manual classification
-m78 add "Config" "Database config..." project config db
-
-# Search memory
-m78 search "keyword"
-
-# QMD mode (saves 75-95% tokens)
-m78 search "keyword" --mode qmd
-
-# List memories
-m78 list --limit 10
-
-# Get details
-m78 get <id or title>
-
-# Delete memory
-m78 delete <id or title>
-
-# Import existing files
-m78 import
-
-# Export data
-m78 export
-
-# Daily log
-m78 daily "Today's work"
-```
-
-### Command Reference
-
-#### add - Add memory
-
-```bash
-m78 add "title" "content" [apisys] [apimicro] [apiobj]
-
-# Options
---mode <insert|append|update|overwrite>  Operation mode
---format <md|json>                       File format
---tags <tag1> <tag2> ...                 Custom tags
-```
-
-#### search - Search memory
-
-```bash
-m78 search "keyword"
-
-# Options
---apisys <value>     Filter by system
---apimicro <value>   Filter by microservice
---apiobj <value>     Filter by entity
---tags <tag1,tag2>   Filter by tags
---limit <n>          Limit results
---mode <text|semantic|qmd>  Search mode
-```
-
-#### list - List memories
-
-```bash
-m78 list --limit 10 --order desc
-```
-
-### Data Storage
-
-| Storage | Path | Description |
-|---------|------|-------------|
-| Database | `memory78/memory78.db` | SQLite + FTS5 full-text index |
-| Files | `memory78/{apisys}/{apimicro}/{apiobj}/{title}.md` | Markdown/JSON |
-
-### Search Mode Comparison
-
-| Mode | Use Case | Token Usage |
-|------|----------|-------------|
-| text | FTS5 full-text search | Full document |
-| semantic | Vector similarity | Full document |
-| qmd | Fragment index + LLM reranking | **Saves 75-95%** |
-
----
+| 级别 | 说明 | 示例 |
+|------|------|------|
+| apisys | 大系统 | project, steam, data |
+| apimicro | 微服务 | api, workflow, config |
+| apiobj | 实体/类 | user, order, payment |
 
 ## License
 
