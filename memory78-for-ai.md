@@ -86,16 +86,23 @@ ls memory78/steam/
 
 ## 三、m78 add 命令格式
 
-**❌ 错误示例：**
+**推荐：主动指定分类**，这是给大模型的规则，大模型应该尽量明确指定：
+
 ```bash
-m78 add "标题" "内容" steam scan price   # 不要手动指定！
+m78 add "标题" "内容" apisys:steam apimicro:scan apiobj:steam_buff_price
 ```
 
-**✅ 正确示例：**
+**格式说明：**
+- `apisys:` - 一级分类，如 `steam`、`aicode`、`base`
+- `apimicro:` - 二级分类，如 `scan`、`price`、`inventory`
+- `apiobj:` - 对象名，默认用标题
+
+**指定后不会硬编码覆盖**：name78.rs 会验证指定的三级分类是否在目录中存在，只在有效时使用，不存在则 fallback 到目录结构推断。
+
+**简单用法（不指定）：**
 ```bash
 m78 add "Steam价格扫描" "扫描Steam市场最低价"
-m78 add "Rust错误处理" "使用 anyhow crate"
-m78 add "Buff库存同步" "同步用户Buff库存"
+# 完全靠目录结构推断
 ```
 
 ---
@@ -129,7 +136,7 @@ m78 add "Buff库存同步" "同步用户Buff库存"
 4. 匹配 apimicro = price（价格相关）
 5. apiobj = steam_buff_price（用标题）
 
-结果：steam/price/steam_buff_price
+命令：m78 add "Steam Buff价格扫描" "扫描用户Buff价格" apisys:steam apimicro:price apiobj:steam_buff_price
 ```
 
 ### 例2：Rust 日志组件
@@ -141,9 +148,9 @@ m78 add "Buff库存同步" "同步用户Buff库存"
 2. 内容提到 "日志"
 3. 匹配 apisys = base
 4. 匹配 apimicro = logger（日志相关）
-5. apiobj = rust日志组件（用标题）
+5. apiobj = rust_logger（用标题）
 
-结果：base/logger/rust日志组件
+命令：m78 add "Rust日志组件" "使用MyLogger进行日志记录" apisys:base apimicro:logger apiobj:rust_logger
 ```
 
 ### 例3：工作流任务
@@ -155,9 +162,9 @@ m78 add "Buff库存同步" "同步用户Buff库存"
 2. 内容提到 "任务"、"调度"
 3. 匹配 apisys = aicode
 4. 匹配 apimicro = task（任务相关）
-5. apiobj = 定时任务调度器（用标题）
+5. apiobj = task_scheduler（用标题）
 
-结果：aicode/task/定时任务调度器
+命令：m78 add "定时任务调度器" "定时任务调度器实现" apisys:aicode apimicro:task apiobj:task_scheduler
 ```
 
 ---
