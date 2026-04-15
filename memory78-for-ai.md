@@ -35,7 +35,7 @@ m78 add "标题" "内容"
 ### 示例
 
 ```bash
-m78 add "Steam Buff 价格扫描流程" "1. 调用 Buff API 获取价格\n2. 对比 Steam 市场均价\n3. 返回最低价链接"
+m78 add "API 认证流程" "1. 客户端发送 JWT Token\n2. 服务端验证签名\n3. 返回用户信息"
 
 m78 add "Rust 错误处理模式" "使用 anyhow crate，通过 ? 运算符传播错误，重大错误用 anyhow::bail!() 直接返回"
 
@@ -52,14 +52,12 @@ m78 通过关键词自动推断三级分类：
 
 | 关键词 | apisys |
 |--------|---------|
-| Steam / Buff / 库存 / 交易 | steam |
-| Claude / 技能 / Skill | claude |
-| AI / 模型 / LLM | ai |
 | 日志 / Logger | base |
-| 工作流 / Workflow | aicode |
 | 配置 / Config | base |
 | 错误 / Error / Bug | base |
-| 游戏 / Game / NPC | aigame |
+| 工作流 / Workflow | aicode |
+| AI / 模型 / LLM | ai |
+| Claude / 技能 / Skill | claude |
 
 ### apimicro 推断（服务级）
 
@@ -90,7 +88,7 @@ m78 通过关键词自动推断三级分类：
 
 ## 四、分类优先级
 
-1. **用户显式指定**：`m78 add "标题" "内容" steam inventory scan`
+1. **用户显式指定**：`m78 add "标题" "内容" apisys apimicro apiobj`
 2. **现有目录匹配**：扫描 memory78 目录，优先归并到已有位置
 3. **关键词推断**：根据内容和标题匹配关键词表
 4. **Fallback**：标题转为 apiobj，其他用 `tmp`
@@ -103,19 +101,18 @@ m78 通过关键词自动推断三级分类：
 
 ```
 memory78/
-├── steam/
-│   ├── scan/
-│   │   └── Buff价格扫描.md
-│   └── price/
-│       └── 市场均价对比.md
 ├── base/
 │   ├── logger/
-│   │   └── Rust日志最佳实践.md
+│   │   └── 日志最佳实践.md
 │   └── error/
-│       └── anyhow使用指南.md
-└── aicode/
-    └── workflow/
-        └── 状态机设计.md
+│       └── 错误处理指南.md
+├── aicode/
+│   └── workflow/
+│       └── 状态机设计.md
+└── {apisys}/
+    └── {apimicro}/
+        └── {apiobj}/
+            └── 知识条目.md
 ```
 
 ---
