@@ -6,9 +6,9 @@
 
 **AI 主动整理本次会话中产生的知识，无需用户明确要求。**
 
-**推荐主动指定分类**，大模型应该尽量用 `apisys:xxx apimicro:xxx apiobj:xxx` 明确指定，name78.rs 会验证是否在目录中存在，不存在才 fallback 到推断。
+**重要：用 m78 add 的位置参数指定分类，不要用 python 脚本。**
 
-## 使用方式
+## 使用时机
 
 把本文档直接扔给 AI，AI 会在以下时机自动整理知识：
 - 开始会话时（了解用户需求后）
@@ -17,237 +17,237 @@
 
 ---
 
-## 一、知识库路径配置（必须）
+## 一、知识库路径配置（三种方式）
 
-**MEMORY78_PATH 指向 memory78 的父目录。**
+m78 通过以下顺序查找数据库和 md 文件：
+
+**方式1：环境变量 MEMORY78_PATH**
 
 ```bash
 export MEMORY78_PATH=/workspace
+# 会在 /workspace/memory78/ 下找 memory78.db
 ```
+
+**方式2：配置文件 memory78.ini**
+
+```ini
+# 放在项目根目录或 docs/config/ 下
+memory78_path = /workspace
+```
+
+**方式3：当前目录（默认）**
+
+```bash
+# 如果当前目录有 memory78.db，直接用
+# 如果当前目录有 memory78/ 目录，用 memory78/memory78.db
+# 都没有则创建 memory78.db
+```
+
+**推荐：用环境变量或配置文件，明确指定路径。**
 
 ---
 
-## 二、分类原理
+## 二、四级分类体系
 
-m78 的分类**不是靠关键词硬编码**，而是**根据目录结构智能推断**。
+| 级别 | 名称 | 说明 | 示例 |
+|------|------|------|------|
+| 一级 | apisys | 多个微服务组合的系统 | steam, aicode, base |
+| 二级 | apimicro | 微服务 | scan, price, inventory |
+| 三级 | apiobj | 类或能力或微服务中的步骤 | buff_scan, steam_price |
+| 四级 | apifun | 类中的函数（用/分隔） | buff_scan/get_price |
 
-### 目录结构（真实）
+### 目录结构（三级目录）
 
 ```
 memory78/
 ├── index.md                       ← 包含 active_apisys 列表
-├── aicode/                        ← AI代码开发
-│   ├── aicode.md
-│   ├── cli/
-│   ├── task/
-│   └── workflow/
-├── aigame/                        ← AI游戏开发
-│   ├── aigame.md
-│   ├── admin/
-│   ├── api/
-│   └── nowrole.md
-├── apigame/                       ← 游戏API
-│   └── apigame.md
-├── axum78/                        ← Axum框架
-│   ├── axum78.md
-│   └── framework/
-├── jhk/                           ← 极客嗨
-│   ├── jhk.md
-│   ├── debug/
-│   ├── dev/
-│   └── workflow/
-├── pro_steam/                     ← Steam项目专属
-│   ├── pro_steam.md
-│   ├── cli/
-│   ├── cookie/
-│   ├── deploy/
-│   ├── design/
-│   └── project/
-├── rustbase/                      ← Rust基础库
-│   ├── base.md
-│   ├── logger/
-│   └── rusttrap/
-├── workflow/                      ← 工作流
-│   └── data_sync/
-└── system/                        ← 系统配置
-    └── static/
+├── {apisys}/                      ← 一级：系统
+│   ├── {apisys}.md                ← 同名.md
+│   └── {apimicro}/                ← 二级：微服务
+│       ├── {apimicro}.md          ← 同名.md
+│       └── {apiobj}/              ← 三级：类/能力/步骤
+│           ├── {apiobj}.md        ← 同名.md
+│           └── {知识条目}.md       ← 知识文件（标题.md）
 ```
 
-### 如何判断分类
+**apiobj 可以用 `/` 分隔表示函数层级**，如 `buff_scan/get_price`，但目录只建到第三级。
 
-**1. 先看 active_apisys**
-
-读取 `memory78/index.md`，找到当前项目关注的 apisys。
-
-**2. 根据内容选择最合适的 apisys**
-
-看目录名判断这段知识属于哪个业务领域，不要靠关键词。
-
-**3. 根据 apisys 下的子目录选择 apimicro**
-
-```bash
-ls memory78/aicode/
-# 看到有: cli/, task/, workflow/
-ls memory78/pro_steam/
-# 看到有: cli/, cookie/, deploy/, design/, project/
-ls memory78/rustbase/
-# 看到有: logger/, rusttrap/
-# 根据内容选择最接近的
-```
-
-**4. apiobj 用标题**
+**每层目录都有同名.md**，记录该目录的说明和子目录清单。
 
 ---
 
-## 三、m78 add 命令格式
+## 三、分类判断流程（必须按此顺序）
 
-**推荐：主动指定分类**
-
-```bash
-m78 add "标题" "内容" apisys:aicode apimicro:cli apiobj:rust_cli_demo
-```
-
-**格式说明：**
-- `apisys:` - 一级分类，如 `aicode`、`pro_steam`、`rustbase`
-- `apimicro:` - 二级分类，如 `cli`、`task`、`logger`
-- `apiobj:` - 对象名，默认用标题
-
-**name78.rs 验证机制**：指定后只在该分类在目录中存在时才使用，不存在则 fallback 到目录结构推断。
-
-**简单用法（不指定）：**
-```bash
-m78 add "Rust CLI实现" "使用clap解析命令行参数"
-# 完全靠目录结构推断
-```
-
----
-
-## 四、分类判断流程
-
-当需要给知识分类时，AI 应该：
-
-1. **读取 active_apisys**：`cat memory78/index.md`
-2. **理解内容**：这段知识是关于什么的？
-3. **匹配 apisys**：根据目录名判断
-   - 目录叫 `aicode` → AI代码开发相关
-   - 目录叫 `rustbase` → Rust基础设施
-   - 目录叫 `pro_steam` → Steam项目相关
-4. **匹配 apimicro**：根据子目录判断
-   - `aicode/cli/` → CLI相关
-   - `rustbase/logger/` → 日志相关
-5. **生成 apiobj**：用标题的关键词
-6. **组合成命令**：在 m78 add 后用 `apisys:xxx apimicro:xxx apiobj:xxx` 格式明确指定
-
----
-
-## 五、示例判断
-
-### 例1：Rust CLI 实现
-```
-内容：使用clap解析命令行参数，支持子命令和参数补全
-
-判断：
-1. 内容属于 Rust 代码开发
-2. 匹配 apisys = aicode（代码开发）
-3. 匹配 apimicro = cli（命令行相关）
-4. apiobj = rust_clap_cli（用标题）
-
-命令：m78 add "Rust CLI实现" "使用clap解析命令行参数" apisys:aicode apimicro:cli apiobj:rust_clap_cli
-```
-
-### 例2：MyLogger 日志组件
-```
-内容：统一日志组件，支持detail/error/info/warn四级，支持文件和控制台输出
-
-判断：
-1. 内容属于 Rust 基础设施
-2. 匹配 apisys = rustbase（Rust基础库）
-3. 匹配 apimicro = logger（日志相关）
-4. apiobj = my_logger（用标题）
-
-命令：m78 add "MyLogger日志组件" "统一日志组件" apisys:rustbase apimicro:logger apiobj:my_logger
-```
-
-### 例3：Steam Cookie 管理
-```
-内容：Steam Cookie 存储和自动刷新机制
-
-判断：
-1. 内容属于 Steam 项目
-2. 匹配 apisys = pro_steam（Steam项目）
-3. 匹配 apimicro = cookie（Cookie相关）
-4. apiobj = steam_cookie（用标题）
-
-命令：m78 add "Steam Cookie管理" "Cookie存储和自动刷新" apisys:pro_steam apimicro:cookie apiobj:steam_cookie
-```
-
-### 例4：工作流数据同步
-```
-内容：定时同步外部数据到本地数据库，支持增量更新
-
-判断：
-1. 内容属于工作流
-2. 匹配 apisys = workflow（工作流）
-3. 匹配 apimicro = data_sync（数据同步）
-4. apiobj = data_sync（用标题）
-
-命令：m78 add "工作流数据同步" "定时同步外部数据" apisys:workflow apimicro:data_sync apiobj:data_sync
-```
-
----
-
-## 六、常见问题
-
-### Q: 如何知道有哪些 apisys？
+### 第一步：扫描根目录，读取 active_apisys
 
 ```bash
 cat memory78/index.md | grep active_apisys
+# 输出：active_apisys: [aicode, steam, base, pro_steam, aigame, jhk]
+
 ls memory78/
+# 列出所有 apisys 目录
 ```
 
-### Q: 如何知道有哪些 apimicro？
+### 第二步：逐层扫描，检查同名.md
 
 ```bash
-ls memory78/aicode/          # aicode 有哪些子目录
-ls memory78/pro_steam/        # pro_steam 有哪些子目录
-ls memory78/rustbase/         # rustbase 有哪些子目录
+ls memory78/steam/                  # 列出 steam 的所有 apimicro
+cat memory78/steam/steam.md         # 检查 steam 的说明
+
+ls memory78/steam/scan/             # 列出 scan 的所有 apiobj
+cat memory78/steam/scan/scan.md     # 检查 scan 的说明
+
+ls memory78/steam/scan/buff_scan/   # 列出 buff_scan 的所有 apifun
+cat memory78/steam/scan/buff_scan/buff_scan.md  # 检查 buff_scan 的说明
 ```
 
-### Q: 目录里没有完全匹配的怎么办？
+**同名.md 可能缺失**，需要修复。
 
-选择最接近的目录，或创建新目录（如果有权限）。
+### 第三步：修复同名.md（同步子目录清单）
 
-### Q: 分类结果不对怎么办？
+同名.md 记录该目录下的子目录清单。**新建子目录后，需要同步到同名.md**。
 
-可以后续手动调整文件路径和数据库记录。
+```bash
+# 扫描目录，检查同名.md 是否需要更新
+m78 scan
+
+# 自动修复：把新建的子目录写入同名.md
+m78 scan --fix
+```
+
+**场景**：
+- 新建了 `memory78/steam/scan/skin/` 目录
+- 但 `memory78/steam/scan/scan.md` 里没有记录 skin
+- `m78 scan --fix` 会自动把 skin 写入 scan.md
+
+### 第四步：匹配分类
+
+**有合适目录 → 直接用**
+
+```bash
+# 知识是 Steam 价格扫描的 get_price 函数
+# ls 发现 memory78/steam/scan/price_scan/ 存在
+# → 直接用：m78 add "标题" "内容" steam scan price_scan get_price
+```
+
+**没有合适目录 → 用提示词判断**
+
+```bash
+# 知识是 Steam 皮肤交易
+# ls 发现 memory78/steam/ 下没有 skin/ 目录（apimicro）
+# → 用提示词判断最接近的 apimicro，或新建目录
+```
+
+### 第五步：新增目录
+
+**用 m78 name78 命名新目录**
+
+```bash
+# 新增 apimicro（二级）
+m78 name78 steam skin "Steam皮肤交易微服务"
+
+# 新增 apiobj（三级）
+m78 name78 steam scan buff_scan "Buff扫描能力"
+
+# 新增 apifun（四级）
+m78 name78 steam scan buff_scan get_buff_price "获取Buff价格函数"
+```
 
 ---
 
-## 七、常用命令
+## 四、m78 add 命令格式（位置参数）
+
+**m78 用位置参数，不是 `apisys:xxx` 格式！**
 
 ```bash
-# 添加知识（自动分类）
-m78 add "标题" "内容"
+m78 add "标题" "内容" apisys apimicro apiobj
+```
 
-# 扫描目录，检查缺失索引
+**示例：**
+
+```bash
+# 正确格式（位置参数）
+m78 add "buysell服务停止修复" "修复方法..." pro_steam design buysell
+
+# apiobj 用 / 分隔表示函数层级
+m78 add "获取Buff价格函数" "实现get_buff_price..." steam scan buff_scan/get_price
+
+# 错误格式（不要用！）
+m78 add "标题" "内容" apisys:pro_steam apimicro:design  # 错！
+```
+
+**参数说明：**
+- 第3个参数：apisys（一级，系统）
+- 第4个参数：apimicro（二级，微服务）
+- 第5个参数：apiobj（三级，类/能力/步骤，可用 `/` 分隔表示函数）
+
+**验证机制**：m78 会检查指定的分类是否在目录中存在，不存在则 fallback。
+
+---
+
+## 五、分类参考
+
+| 内容类型 | apisys | apimicro | apiobj |
+|---------|--------|----------|--------|
+| Steam 交易 | pro_steam | trade | order |
+| Steam 扫描 | pro_steam | scan | buff_scan |
+| Steam 价格 | pro_steam | price | steam_price |
+| AI 代码 | aicode | cli | idea2plan |
+| 日志组件 | rustbase | logger | mylogger |
+
+---
+
+## 六、常用命令
+
+```bash
+# 路径配置（三种方式任选其一）
+export MEMORY78_PATH=/workspace
+# 或在 memory78.ini 中配置 memory78_path = /workspace
+# 或直接在 memory78 目录下运行
+
+# 扫描目录，检查同名.md 是否需要更新
 m78 scan
+
+# 自动修复：把新建的子目录写入同名.md
+m78 scan --fix
+
+# 新增目录（命名）
+m78 name78 steam scan buff_scan "Buff扫描能力"
+
+# 添加知识（用位置参数指定分类）
+m78 add "标题" "内容" pro_steam design buysell
+
+# apiobj 用 / 分隔表示函数层级
+m78 add "获取Buff价格" "实现get_buff_price..." steam scan buff_scan/get_price
+
+# 列出知识
+m78 list --limit 10
 
 # 搜索知识
 m78 search "关键词"
 
-# 列出所有知识
-m78 list
+# 获取详情
+m78 get <ID>
+
+# 删除（需要完整ID）
+m78 delete <完整ID>
 ```
 
 ---
 
-## 八、注意事项
+## 七、注意事项
 
-1. **不要用虚假目录举例** - 只用 memory78 真实存在的目录
-2. **先看 index.md** - 了解 active_apisys
-3. **看目录名判断** - 根据目录结构推断，不是靠关键词硬编码
-4. **内容要精炼** - 存的是知识摘要
-5. **标题要简洁** - 一句话，能概括核心
+1. **路径配置三种方式** - 环境变量、配置文件、当前目录
+2. **四级分类体系** - apisys → apimicro → apiobj → apifun（用/分隔）
+3. **目录只建三级** - 知识文件放在 apiobj 目录下
+4. **用位置参数** - `m78 add "标题" "内容" apisys apimicro apiobj`
+5. **先扫描目录** - 从 index.md 开始，逐层 ls 看目录结构
+6. **检查同名.md** - 每层目录都有同名.md，新建子目录后用 `m78 scan --fix` 同步
+7. **有合适目录直接用** - 不要强行创建新目录
+8. **没有合适目录用提示词判断** - 选最接近的已有目录
+9. **新增目录用 m78 name78** - 保持命名规范
+10. **内容要精炼** - 存的是知识摘要
+11. **删除需要完整ID** - 不能只传前缀
 
 ---
 
