@@ -1,229 +1,222 @@
-# Memory78 CLI
+# Memory78 AI 使用指南
 
-**[English](README_EN.md) | 中文**
+> 本文档告诉 AI 如何将对话中产生的知识归纳到 memory78 知识库。
 
-高性能本地知识库引擎，用于管理代码知识和项目记忆。
+## 核心原则
 
-## 为什么需要 Memory78？
+**用户只需要说"存到知识库"，AI 自动完成分类和存储。**
 
-| 痛点                    | Memory78 解决方案                               |
-| ----------------------- | ----------------------------------------------- |
-| AI 每次都要读取完整文档 | QMD 智能搜索，只返回相关片段，节省 75-95% Token |
-| 知识散落各处，难以查找  | 四级分类结构，人和 AI 都能快速定位              |
-| 记忆保存不直观          | 自动分类存储，用户只输入内容即可                |
-| 知识无法形成体系        | SQLite + 文件双存储，结构化组织                 |
+不需要用户指定 apisys/apimicro/apiobj，AI 通过内容分析自动推断。
 
-## 安装
+---
 
-从 [Releases](https://github.com/www778878net/memory78/releases) 下载对应平台可执行文件。
+## 一、触发时机
 
-**Windows:** 下载 `m78.exe`，放到项目目录或添加到 PATH。
+当用户说以下类似的话时，AI 应该调用 m78 add：
 
-**Claude Skill:** 复制 `skills/memory78` 目录到 `.claude/skills/`。
+| 用户说 | AI 理解 |
+|--------|---------|
+| `把这个存到知识库` | 调用 m78 add |
+| `刚才的帮我记一下` | 调用 m78 add |
+| `保存这个知识` | 调用 m78 add |
+| `记一下这个` | 调用 m78 add |
 
-## 快速开始
+---
 
-```bash
-# 添加记忆（自动分类）
-m78 add "API设计" "用户认证使用JWT..."
-
-# 手动指定分类
-m78 add "配置说明" "数据库配置..." project config db
-
-# 搜索记忆
-m78 search "关键词"
-
-# QMD 模式（节省 75-95% Token）
-m78 search "关键词" --mode qmd
-
-# 列出记忆
-m78 list --limit 10
-
-# 获取详情
-m78 get <id或标题>
-
-# 删除记忆
-m78 delete <id或标题>
-
-# 导入已有文件
-m78 import
-
-# 导出数据
-m78 export
-
-# 每日日志
-m78 daily "今日工作内容"
-```
-
-## 核心功能
-
-### 1. 智能搜索（节省 Token）
+## 二、m78 add 命令格式
 
 ```bash
-# QMD 模式：只返回相关片段，节省 75-95% Token
-m78 search "base78" --mode qmd
-
-# FTS5 全文搜索
-m78 search "关键词"
-
-# 语义搜索（向量相似度）
-m78 search "关键词" --mode semantic
+m78 add "标题" "内容"
 ```
 
-### 2. 四级分类存储
+**标题**：简洁，一句话说明是什么
+**内容**：知识的核心内容，可以是多行 markdown
 
-记忆按 `{apisys}/{apimicro}/{apiobj}/{title}.md` 自动组织：
+### 示例
+
+```bash
+m78 add "Steam Buff 价格扫描流程" "1. 调用 Buff API 获取价格\n2. 对比 Steam 市场均价\n3. 返回最低价链接"
+
+m78 add "Rust 错误处理模式" "使用 anyhow crate，通过 ? 运算符传播错误，重大错误用 anyhow::bail!() 直接返回"
+
+m78 add "Docker 容器通信" "同网络容器用容器名互通，如 postgres://db:5432"
+```
+
+---
+
+## 三、自动分类规则
+
+m78 通过关键词自动推断三级分类：
+
+### apisys 推断（系统级）
+
+| 关键词 | apisys |
+|--------|---------|
+| Steam / Buff / 库存 / 交易 | steam |
+| Claude / 技能 / Skill | claude |
+| AI / 模型 / LLM | ai |
+| 日志 / Logger | base |
+| 工作流 / Workflow | aicode |
+| 配置 / Config | base |
+| 错误 / Error / Bug | base |
+| 游戏 / Game / NPC | aigame |
+
+### apimicro 推断（服务级）
+
+| 关键词 | apimicro |
+|--------|---------|
+| 扫描 / Scan | scan |
+| 价格 / Price | price |
+| 库存 / Inventory | inventory |
+| 策略 / Strategy | strategy |
+| 订单 / Order | order |
+| 交易 / Trade | trade |
+| 能力 / Capability | capability |
+| 工作流 / Workflow | workflow |
+
+### apiobj 推断（操作级）
+
+| 关键词 | apiobj |
+|--------|---------|
+| 扫描 / 获取 / 查询 | scan |
+| 获取 / Fetch / Get | get |
+| 新增 / 创建 | create |
+| 更新 / 修改 | update |
+| 删除 | delete |
+| 保存 / 存储 | save |
+| 校验 / 验证 | validate |
+
+---
+
+## 四、分类优先级
+
+1. **用户显式指定**：`m78 add "标题" "内容" steam inventory scan`
+2. **现有目录匹配**：扫描 memory78 目录，优先归并到已有位置
+3. **关键词推断**：根据内容和标题匹配关键词表
+4. **Fallback**：标题转为 apiobj，其他用 `tmp`
+
+---
+
+## 五、目录结构
+
+存储位置：`memory78/{apisys}/{apimicro}/{apiobj}/{标题}.md`
 
 ```
 memory78/
-├── project/           # apisys: 大系统
-│   ├── api/           # apimicro: 微服务
-│   │   ├── user/      # apiobj: 实体/类
-│   │   │   └── 登录设计.md
-│   │   └── config/
-│   │       └── 数据库配置.md
-│   └── workflow/
-│       └── 订单流程.md
-└── steam/
-    └── buff/
-        └── 价格策略.md
+├── steam/
+│   ├── scan/
+│   │   └── Buff价格扫描.md
+│   └── price/
+│       └── 市场均价对比.md
+├── base/
+│   ├── logger/
+│   │   └── Rust日志最佳实践.md
+│   └── error/
+│       └── anyhow使用指南.md
+└── aicode/
+    └── workflow/
+        └── 状态机设计.md
 ```
 
-### 3. 自动分类（name78 算法）
+---
 
-```bash
-# 不用指定分类，自动识别
-m78 add "API设计" "用户认证使用JWT..." 
-# → 自动分类为 project/api/api_design
+## 六、文件格式
 
-# 也可以手动指定
-m78 add "配置说明" "数据库配置..." project config db
+```markdown
+---
+title: {标题}
+tags: [{apiobj}, {apisys}, {apimicro}]
+created_at: {时间}
+hash: {内容哈希}
+apisys: {apisys}
+apimicro: {apimicro}
+apiobj: {apiobj}
+---
+
+# {标题}
+
+> apisys: {apisys} | apimicro: {apimicro} | apiobj: {apiobj}
+
+## 摘要
+
+{一句话说明核心知识}
+
+## 关键知识
+
+- 要点1
+- 要点2
+- 要点3
+
+## 使用场景
+
+{什么情况下会用这个知识}
 ```
 
-### 4. AI 编码助手集成
+---
 
-配置为 Claude Skill 后，AI 自动管理知识。
+## 七、Smart Merge 智能归并
 
-## 命令详解
+`m78 add` 默认使用 smart 模式，自动处理三种情况：
 
-### add - 添加记忆
+### 模式 A：精确匹配
+文件已存在 → 检查内容哈希
+- 相同：跳过（幂等）
+- 不同：追加到文件末尾
 
+### 模式 B：同类项归并
+发现相似的 apiobj → 归并到最相近的已有条目
+
+### 模式 C：全新条目
+没有匹配 → 创建新文件 + 自动创建索引
+
+---
+
+## 八、配置方式
+
+### 环境变量（推荐）
 ```bash
-m78 add "标题" "内容" [apisys] [apimicro] [apiobj]
-
-# 选项
---mode <insert|append|update|overwrite>  操作模式
---format <md|json>                       文件格式
---tags <tag1> <tag2> ...                 自定义标签
+export MEMORY78_PATH=/path/to/memory78
 ```
 
-### search - 搜索记忆
+### 配置文件
+在项目根目录创建 `memory78.ini`：
+```ini
+memory78_dir = /path/to/memory78
+```
+
+### 自动查找
+如果都没有设置，默认使用当前目录
+
+---
+
+## 九、常用命令
 
 ```bash
+# 添加知识（自动分类）
+m78 add "标题" "内容"
+
+# 扫描目录，检查缺失索引
+m78 scan
+
+# 修复缺失索引
+m78 scan --fix
+
+# 搜索知识
 m78 search "关键词"
 
-# 选项
---apisys <value>     按大系统过滤
---apimicro <value>   按微服务过滤
---apiobj <value>     按实体过滤
---tags <tag1,tag2>   标签过滤
---limit <n>          限制数量
---mode <text|semantic|qmd>  搜索模式
+# 列出所有知识
+m78 list
+
+# 获取详情
+m78 get <id或标题>
 ```
 
-### list - 列出记忆
+---
 
-```bash
-m78 list --limit 10 --order desc
-```
+## 十、注意事项
 
-### get / delete / import / export / daily
-
-详见 `--help`。
-
-## 数据存储
-
-| 存储方式 | 路径                                               | 说明                   |
-| -------- | -------------------------------------------------- | ---------------------- |
-| 数据库   | `memory78/memory78.db`                             | SQLite + FTS5 全文索引 |
-| 文件     | `memory78/{apisys}/{apimicro}/{apiobj}/{title}.md` | Markdown/JSON          |
-
-## 搜索模式分级
-
-### L0 零模型（开箱即用，无需下载）
-
-| 模式   | 用途                  | Token 消耗 | 依赖 |
-| ------ | --------------------- | ---------- | ---- |
-| text   | FTS5 全文搜索         | 完整文档   | 无   |
-| list   | 三级标签定位          | 完整文档   | 无   |
-| wiki   | 目录浏览(index.md)    | 手动阅读   | 无   |
-
-### L1 语义搜索（下载 1 个模型 ~350MB）
-
-| 模式     | 用途                  | Token 消耗 | 依赖                      |
-| -------- | --------------------- | ---------- | ------------------------- |
-| semantic | 向量相似度搜索        | 完整文档   | embeddinggemma-300M       |
-| hybrid   | text + semantic 结合  | 完整文档   | embeddinggemma-300M       |
-
-### L2 QMD 智能搜索（下载 3 个模型 ~2GB）
-
-| 模式 | 用途                       | Token 消耗       | 依赖      |
-| ---- | -------------------------- | ---------------- | --------- |
-| qmd  | 查询扩展 + 向量 + 重排序   | **节省 75-95%**  | 3 个模型  |
-
-### auto 自动模式
-
-```bash
-m78 search "关键词" --mode auto
-```
-
-自动按可用性降级：qmd → hybrid → text，哪个能用用哪个。
-
-## 模型说明
-
-> 模型下载地址：https://github.com/www778878net/models
-
-| 模型文件                               | 用途         | 参数量 | 大小     | 被谁使用                  |
-| -------------------------------------- | ------------ | ------ | -------- | ------------------------- |
-| embeddinggemma-300M-Q8_0.gguf         | 文本向量化   | 300M   | ~350MB   | semantic / hybrid / qmd   |
-| qmd-query-expansion-1.7B-q4_k_m.gguf  | 查询扩展     | 1.7B   | ~1GB     | qmd                       |
-| qwen3-reranker-0.6b-q8_0.gguf         | 结果重排序   | 0.6B   | ~650MB   | qmd                       |
-
-**各模型做什么：**
-
-- **文本向量化(embeddinggemma)**：把文字转成数字向量，让"路由机制"和"route handler"这样的语义相近的词能匹配上
-- **查询扩展(query-expansion)**：把简短查询扩展成多个变体，如"路由"→["路由机制", "route handler", "API路由"]，提升召回率
-- **结果重排序(reranker)**：对搜索结果重新排序，把最相关的排到最前面
-
-## 渐进式升级
-
-```
-安装 m78 → 直接用 text/list/wiki（零门槛）
-           ↓ 想要语义搜索
-    下载 1 个模型 (~350MB) → 开通 semantic / hybrid
-           ↓ 想要省 Token
-    再下载 2 个模型 (~1.65GB) → 开通 qmd（省 75-95% Token）
-```
-
-```bash
-# 第一步：零模型即可使用
-m78 add "标题" "内容"
-m78 search "关键词"              # text 模式，无需任何模型
-
-# 第二步：下载 embeddinggemma 后开通语义搜索
-m78 search "自然语言描述" --mode semantic
-
-# 第三步：下载全部 3 个模型后开通 QMD
-m78 search "关键词" --mode qmd   # 省 75-95% Token
-```
-
-## 四级分类说明
-
-| 级别     | 说明           | 示例                        |
-| -------- | -------------- | --------------------------- |
-| apisys   | 大系统         | project, steam, data        |
-| apimicro | 微服务         | api, workflow, config       |
-| apiobj   | 实体/类        | user, order, payment        |
-| apifun   | 函数/属性/方法 | login, validate, get_config |
-
-
+1. **内容要精炼**：存的是知识摘要，不是完整文档
+2. **标题要简洁**：一句话，能概括核心
+3. **标签自动生成**：无需手动指定 tags
+4. **幂等操作**：相同内容重复 add 不会创建重复条目
+5. **分类错误可以修正**：后续可以手动调整 apisys/apimicro/apiobj
