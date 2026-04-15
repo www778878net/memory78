@@ -6,7 +6,7 @@
 
 **AI 主动整理本次会话中产生的知识，无需用户明确要求。**
 
-**重要：不要手动指定分类！让 m78 自动推断。**
+**重要：不要手动指定分类！让 m78 根据目录结构自动推断。**
 
 ## 使用方式
 
@@ -19,136 +19,179 @@
 
 ## 一、知识库路径配置（必须）
 
-**MEMORY78_PATH 指向 memory78 的父目录，代码会在此目录下找 memory78 子目录。**
+**MEMORY78_PATH 指向 memory78 的父目录。**
 
-### 方式一：环境变量
-
-```bash
-export MEMORY78_PATH=/path/to/parent    # 指向 memory78 的父目录
-```
-
-例如 memory78 在 `/workspace/memory78`，则：
 ```bash
 export MEMORY78_PATH=/workspace
 ```
 
-### 方式二：配置文件
-
-在项目根目录创建 `memory78.ini`：
-
-```ini
-memory78_path = /path/to/parent    # 指向 memory78 的父目录
-```
-
-**两者选一，推荐环境变量。**
-
 ---
 
-## 二、知识库结构
+## 二、分类原理
+
+m78 的分类**不是靠关键词硬编码**，而是**根据目录结构智能推断**。
+
+### 目录结构示例
 
 ```
-memory78/                          ← Git submodule，独立仓库
-├── index.md                       ← 首页，包含 active_apisys
-├── memory78.db                   ← SQLite 搜索库
-├── {apisys}/                     ← 一级：apisys 大系统
-│   ├── {apisys}.md               ← 该系统的索引页
-│   └── {apimicro}/               ← 二级：apimicro 微服务
-│       ├── {apimicro}.md         ← 该微服务的索引页
-│       └── {apiobj}/              ← 三级：apiobj 实体/能力
-│           └── {apiobj}.md       ← 知识条目
+memory78/
+├── index.md                       ← 包含 active_apisys 列表
+├── aicode/                       ← AI代码开发
+│   ├── aicode.md
+│   ├── cli/
+│   └── task/
+├── steam/                        ← Steam交易业务
+│   ├── steam.md
+│   ├── scan/
+│   ├── price/
+│   └── inventory/
+├── base/                         ← 基础库（日志、错误、配置）
+│   ├── base.md
+│   ├── logger/
+│   └── error/
+├── pro_steam/                    ← 项目专属知识
+└── ...
 ```
 
-**重要：每个目录都有同名 .md 索引文件。**
+### 如何判断分类
 
----
+**1. 先看 active_apisys**
 
-## 三、确定 active_apisys
-
-如果 memory78 目录存在，先读取 `memory78/index.md`：
-
-```bash
-cat memory78/index.md
-```
-
-找到 `active_apisys` 列表：
+读取 `memory78/index.md`，找到当前项目关注的 apisys：
 
 ```markdown
-active_apisys: [aicode, steam, base, pro_steam]
+active_apisys: [aicode, steam, base, pro_steam, aigame, jhk]
 ```
 
-这告诉 AI 当前项目关注哪些 apisys，知识应该存到这些目录下。
+**2. 根据内容选择最合适的 apisys**
 
-如果 memory78 不存在，跳过此步骤。
+如果知识是关于：
+- Steam 交易、Buff、库存 → `steam`
+- AI 代码、workflow、task → `aicode`
+- 日志、错误、配置、基础设施 → `base`
+- 项目专属业务逻辑 → `pro_steam`
+- 游戏开发、NPC、Lord → `aigame`
+
+**3. 根据 apisys 下的目录结构选择 apimicro**
+
+```bash
+ls memory78/steam/
+# 看到有: scan/, price/, inventory/, dataservice/
+# 根据内容选择最接近的
+```
+
+**4. apiobj 用标题**
 
 ---
 
-## 四、m78 add 命令格式
+## 三、m78 add 命令格式
 
-**❌ 错误示例（不要这样做）：**
+**❌ 错误示例：**
 ```bash
-m78 add "标题" "内容" steam scan price   # 不要手动指定分类！
+m78 add "标题" "内容" steam scan price   # 不要手动指定！
 ```
 
-**✅ 正确示例（让 m78 自动分类）：**
+**✅ 正确示例：**
 ```bash
 m78 add "Steam价格扫描" "扫描Steam市场最低价"
 m78 add "Rust错误处理" "使用 anyhow crate"
 m78 add "Buff库存同步" "同步用户Buff库存"
 ```
 
-**m78 会自动根据内容推断分类：**
-- "Steam价格" → apisys=steam
-- "扫描" → apimicro=scan
-- 标题自动转为 apiobj
+---
+
+## 四、分类判断流程
+
+当需要给知识分类时，AI 应该：
+
+1. **读取 active_apisys**：`cat memory78/index.md`
+2. **理解内容**：这段知识是关于什么的？
+3. **匹配 apisys**：根据目录名判断，不是关键词
+   - 目录叫 `steam` → 关于 Steam 的放这里
+   - 目录叫 `base` → 基础设施放这里
+4. **匹配 apimicro**：根据子目录判断
+   - `steam/scan/` → 扫描相关
+   - `steam/price/` → 价格相关
+5. **生成 apiobj**：用标题的关键词
 
 ---
 
-## 五、自动分类规则
+## 五、示例判断
 
-m78 通过以下顺序自动推断分类：
+### 例1：Steam Buff 价格扫描
+```
+内容：扫描用户Buff价格，获取Steam市场最低价
 
-### 1. 先扫描 memory78 目录结构
+判断：
+1. active_apisys 有 steam ✓
+2. 内容提到 "Steam"、"Buff"、"价格"
+3. 匹配 apisys = steam
+4. 匹配 apimicro = price（价格相关）
+5. apiobj = steam_buff_price（用标题）
 
-m78 会扫描现有目录，找到所有 apisys/apimicro/apiobj。
+结果：steam/price/steam_buff_price
+```
 
-### 2. 匹配现有目录
+### 例2：Rust 日志组件
+```
+内容：使用 MyLogger 进行日志记录
 
-如果内容提到 "Steam"、"库存"、"扫描"，会优先匹配到已有的 `steam/scan/` 目录。
+判断：
+1. active_apisys 有 base ✓
+2. 内容提到 "日志"
+3. 匹配 apisys = base
+4. 匹配 apimicro = logger（日志相关）
+5. apiobj = rust日志组件（用标题）
 
-### 3. 匹配 active_apisys
+结果：base/logger/rust日志组件
+```
 
-根据 `index.md` 中的 `active_apisys` 列表，只在这些目录下分类。
+### 例3：工作流任务
+```
+内容：定时任务调度器实现
 
-### 4. 关键词推断 fallback
+判断：
+1. active_apisys 有 aicode ✓
+2. 内容提到 "任务"、"调度"
+3. 匹配 apisys = aicode
+4. 匹配 apimicro = task（任务相关）
+5. apiobj = 定时任务调度器（用标题）
 
-如果现有目录都不匹配，才用关键词推断：
-- "日志" → base
-- "错误" → base
-- "工作流" → aicode
-- "扫描" → scan
+结果：aicode/task/定时任务调度器
+```
 
 ---
 
 ## 六、常见问题
 
-### Q: AI 喜欢手动指定分类怎么办？
+### Q: 如何知道有哪些 apisys？
 
-**A:** 明确告诉 AI："不要手动指定分类，m78 会自动推断"。
+```bash
+cat memory78/index.md | grep active_apisys
+ls memory78/
+```
+
+### Q: 如何知道有哪些 apimicro？
+
+```bash
+ls memory78/steam/          # steam 有哪些子目录
+ls memory78/base/            # base 有哪些子目录
+```
+
+### Q: 目录里没有完全匹配的怎么办？
+
+选择最接近的目录，或创建新目录（如果有权限）。
 
 ### Q: 分类结果不对怎么办？
 
-**A:** 可以后续手动调整文件路径和数据库记录。
-
-### Q: 想指定分类怎么办？
-
-**A:** 只有在明确知道分类且现有目录已有时才指定，否则让 m78 自动推断。
+可以后续手动调整文件路径和数据库记录。
 
 ---
 
 ## 七、常用命令
 
 ```bash
-# 添加知识（自动分类，不需要指定！）
+# 添加知识（自动分类）
 m78 add "标题" "内容"
 
 # 扫描目录，检查缺失索引
@@ -165,11 +208,11 @@ m78 list
 
 ## 八、注意事项
 
-1. **不要手动指定分类** - 让 m78 自动推断
-2. **先查 index.md** - 确认 active_apisys 再决定存哪
-3. **内容要精炼** - 存的是知识摘要，不是完整文档
-4. **标题要简洁** - 一句话，能概括核心
-5. **幂等操作** - 相同内容重复 add 不会创建重复条目
+1. **不要手动指定分类** - 根据目录结构判断
+2. **先看 index.md** - 了解 active_apisys
+3. **看目录名判断** - 不是靠关键词硬编码
+4. **内容要精炼** - 存的是知识摘要
+5. **标题要简洁** - 一句话，能概括核心
 
 ---
 
