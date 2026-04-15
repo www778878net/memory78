@@ -17,9 +17,27 @@
 
 ---
 
-## 一、知识库结构
+## 一、知识库路径配置（必须）
 
-memory78 是 Git submodule，结构如下：
+### 方式一：环境变量
+
+```bash
+export MEMORY78_PATH=/path/to/memory78
+```
+
+### 方式二：配置文件
+
+在项目根目录创建 `memory78.ini`：
+
+```ini
+memory78_path = /path/to/memory78
+```
+
+**两者选一，推荐环境变量。**
+
+---
+
+## 二、知识库结构
 
 ```
 memory78/                          ← Git submodule，独立仓库
@@ -37,57 +55,23 @@ memory78/                          ← Git submodule，独立仓库
 
 ---
 
-## 二、配置方式（必须）
+## 三、确定 active_apisys
 
-### 第一步：查看 active_apisys
-
-先读取 `memory78/index.md`，找到当前项目的 `active_apisys`：
-
-```markdown
-active_apisys: [aicode, steam, base, pro_steam, aigame, jhk]
-```
-
-这告诉 AI 当前项目关注哪些 apisys，知识应该存到这些目录下。
-
-### 第二步：设置环境变量
-
-在项目根目录设置：
-
-```bash
-export MEMORY78_PATH=/workspace/memory78
-```
-
-或者创建 `memory78.ini`：
-
-```ini
-memory78_dir = /workspace/memory78
-```
-
-### 第三步：确认目录存在
-
-```bash
-ls memory78/index.md  # 确认 submodule 已初始化
-```
-
----
-
-## 三、分类查询
-
-在决定存到哪个 apisys 之前，先查目录结构：
-
-### 查 index.md 了解 active_apisys
+如果 memory78 目录存在，先读取 `memory78/index.md`：
 
 ```bash
 cat memory78/index.md
 ```
 
-### 查 {apisys}/{apisys}.md 了解该系统有什么 apimicro
+找到 `active_apisys` 列表：
 
-```bash
-cat memory78/pro_steam/pro_steam.md
+```markdown
+active_apisys: [aicode, steam, base, pro_steam]
 ```
 
-### 查 {apisys}/{apimicro}/{apimicro}.md 了解该微服务有什么 apiobj
+这告诉 AI 当前项目关注哪些 apisys，知识应该存到这些目录下。
+
+如果 memory78 不存在，跳过此步骤。
 
 ---
 
@@ -118,7 +102,7 @@ m78 通过关键词自动推断三级分类：
 
 ### apisys 推断（系统级）
 
-根据 `memory78/index.md` 的 `active_apisys` 列表匹配。
+根据 `active_apisys` 列表匹配，优先使用列表中已有的 apisys。
 
 | 关键词 | apisys |
 |--------|---------|
@@ -229,10 +213,10 @@ m78 get <id或标题>
 
 ## 十、注意事项
 
-1. **先查 index.md**：确认 active_apisys 再决定存哪
-2. **内容要精炼**：存的是知识摘要，不是完整文档
-3. **标题要简洁**：一句话，能概括核心
-4. **标签自动生成**：无需手动指定 tags
+1. **先配路径**：MEMORY78_PATH 环境变量或 memory78.ini
+2. **有 index.md 则查**：确认 active_apisys 再决定存哪
+3. **内容要精炼**：存的是知识摘要，不是完整文档
+4. **标题要简洁**：一句话，能概括核心
 5. **幂等操作**：相同内容重复 add 不会创建重复条目
 6. **分类错误可以修正**：后续可以手动调整 apisys/apimicro/apiobj
 
