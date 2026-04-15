@@ -19,10 +19,17 @@
 
 ## 一、知识库路径配置（必须）
 
+**MEMORY78_PATH 指向 memory78 的父目录，代码会在此目录下找 memory78 子目录。**
+
 ### 方式一：环境变量
 
 ```bash
-export MEMORY78_PATH=/path/to/memory78
+export MEMORY78_PATH=/path/to/parent    # 指向 memory78 的父目录
+```
+
+例如 memory78 在 `/workspace/memory78`，则：
+```bash
+export MEMORY78_PATH=/workspace
 ```
 
 ### 方式二：配置文件
@@ -30,7 +37,7 @@ export MEMORY78_PATH=/path/to/memory78
 在项目根目录创建 `memory78.ini`：
 
 ```ini
-memory78_path = /path/to/memory78
+memory78_path = /path/to/parent    # 指向 memory78 的父目录
 ```
 
 **两者选一，推荐环境变量。**
