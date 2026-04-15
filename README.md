@@ -148,13 +148,74 @@ m78 list --limit 10 --order desc
 | 数据库   | `memory78/memory78.db`                             | SQLite + FTS5 全文索引 |
 | 文件     | `memory78/{apisys}/{apimicro}/{apiobj}/{title}.md` | Markdown/JSON          |
 
-## 搜索模式对比
+## 搜索模式分级
 
-| 模式     | 用途                  | Token 消耗      |
-| -------- | --------------------- | --------------- |
-| text     | FTS5 全文搜索         | 完整文档        |
-| semantic | 向量相似度            | 完整文档        |
-| qmd      | 片段索引 + LLM 重排序 | **节省 75-95%** |
+### L0 零模型（开箱即用，无需下载）
+
+| 模式   | 用途                  | Token 消耗 | 依赖 |
+| ------ | --------------------- | ---------- | ---- |
+| text   | FTS5 全文搜索         | 完整文档   | 无   |
+| list   | 三级标签定位          | 完整文档   | 无   |
+| wiki   | 目录浏览(index.md)    | 手动阅读   | 无   |
+
+### L1 语义搜索（下载 1 个模型 ~350MB）
+
+| 模式     | 用途                  | Token 消耗 | 依赖                      |
+| -------- | --------------------- | ---------- | ------------------------- |
+| semantic | 向量相似度搜索        | 完整文档   | embeddinggemma-300M       |
+| hybrid   | text + semantic 结合  | 完整文档   | embeddinggemma-300M       |
+
+### L2 QMD 智能搜索（下载 3 个模型 ~2GB）
+
+| 模式 | 用途                       | Token 消耗       | 依赖      |
+| ---- | -------------------------- | ---------------- | --------- |
+| qmd  | 查询扩展 + 向量 + 重排序   | **节省 75-95%**  | 3 个模型  |
+
+### auto 自动模式
+
+```bash
+m78 search "关键词" --mode auto
+```
+
+自动按可用性降级：qmd → hybrid → text，哪个能用用哪个。
+
+## 模型说明
+
+> 模型下载地址：https://github.com/www778878net/models
+
+| 模型文件                               | 用途         | 参数量 | 大小     | 被谁使用                  |
+| -------------------------------------- | ------------ | ------ | -------- | ------------------------- |
+| embeddinggemma-300M-Q8_0.gguf         | 文本向量化   | 300M   | ~350MB   | semantic / hybrid / qmd   |
+| qmd-query-expansion-1.7B-q4_k_m.gguf  | 查询扩展     | 1.7B   | ~1GB     | qmd                       |
+| qwen3-reranker-0.6b-q8_0.gguf         | 结果重排序   | 0.6B   | ~650MB   | qmd                       |
+
+**各模型做什么：**
+
+- **文本向量化(embeddinggemma)**：把文字转成数字向量，让"路由机制"和"route handler"这样的语义相近的词能匹配上
+- **查询扩展(query-expansion)**：把简短查询扩展成多个变体，如"路由"→["路由机制", "route handler", "API路由"]，提升召回率
+- **结果重排序(reranker)**：对搜索结果重新排序，把最相关的排到最前面
+
+## 渐进式升级
+
+```
+安装 m78 → 直接用 text/list/wiki（零门槛）
+           ↓ 想要语义搜索
+    下载 1 个模型 (~350MB) → 开通 semantic / hybrid
+           ↓ 想要省 Token
+    再下载 2 个模型 (~1.65GB) → 开通 qmd（省 75-95% Token）
+```
+
+```bash
+# 第一步：零模型即可使用
+m78 add "标题" "内容"
+m78 search "关键词"              # text 模式，无需任何模型
+
+# 第二步：下载 embeddinggemma 后开通语义搜索
+m78 search "自然语言描述" --mode semantic
+
+# 第三步：下载全部 3 个模型后开通 QMD
+m78 search "关键词" --mode qmd   # 省 75-95% Token
+```
 
 ## 四级分类说明
 
