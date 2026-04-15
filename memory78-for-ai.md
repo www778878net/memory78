@@ -125,33 +125,36 @@ m78 scan --fix
 **有合适目录 → 直接用**
 
 ```bash
-# 知识是 Steam 价格扫描的 get_price 函数
-# ls 发现 memory78/steam/scan/price_scan/ 存在
-# → 直接用：m78 add "标题" "内容" steam scan price_scan get_price
+# 知识是日志组件使用方法
+# ls 发现 memory78/base/logger/ 存在
+# → 直接用：m78 add "标题" "内容" base logger mylogger
 ```
 
-**没有合适目录 → 用提示词判断**
+**没有合适目录 → 需要取名**
 
 ```bash
-# 知识是 Steam 皮肤交易
-# ls 发现 memory78/steam/ 下没有 skin/ 目录（apimicro）
-# → 用提示词判断最接近的 apimicro，或新建目录
+# 知识是定时任务调度
+# ls 发现 memory78/aicode/ 下没有 scheduler/ 目录（apimicro）
+# → 需要为新的 apimicro 取名
 ```
 
-### 第五步：新增目录
+### 第五步：新增目录（取名）
 
-**用 m78 name78 命名新目录**
+**用 m78 name 命名新目录，根据能力需求生成命名建议**
 
 ```bash
-# 新增 apimicro（二级）
-m78 name78 steam skin "Steam皮肤交易微服务"
+# 根据描述生成命名建议
+m78 name "用户需要把数据保存到数据库"
 
-# 新增 apiobj（三级）
-m78 name78 steam scan buff_scan "Buff扫描能力"
-
-# 新增 apifun（四级）
-m78 name78 steam scan buff_scan get_buff_price "获取Buff价格函数"
+# 输出完整 prompt，让 AI 生成命名方案
+m78 name "用户需要把数据保存到数据库" --prompt
 ```
+
+**命名规则**：
+- 只能有3层：apimicro、apiobj、capability
+- 模式A（面向需求）：apimicro 是用户需求，如"数据保存"
+- 模式B（面向上下文）：apimicro 是外部系统名
+- apimicro 和 apiobj 不允许下划线，只能一个单词
 
 ---
 
@@ -189,11 +192,11 @@ m78 add "标题" "内容" apisys:pro_steam apimicro:design  # 错！
 
 | 内容类型 | apisys | apimicro | apiobj |
 |---------|--------|----------|--------|
-| Steam 交易 | pro_steam | trade | order |
-| Steam 扫描 | pro_steam | scan | buff_scan |
-| Steam 价格 | pro_steam | price | steam_price |
-| AI 代码 | aicode | cli | idea2plan |
-| 日志组件 | rustbase | logger | mylogger |
+| 定时任务 | aicode | task | scheduler |
+| 命令行工具 | aicode | cli | parser |
+| 日志组件 | base | logger | mylogger |
+| 错误处理 | base | error | handler |
+| 配置管理 | base | config | loader |
 
 ---
 
@@ -211,14 +214,17 @@ m78 scan
 # 自动修复：把新建的子目录写入同名.md
 m78 scan --fix
 
-# 新增目录（命名）
-m78 name78 steam scan buff_scan "Buff扫描能力"
+# 根据能力需求生成命名建议
+m78 name "用户需要把数据保存到数据库"
+
+# 输出完整 prompt，让 AI 生成命名方案
+m78 name "用户需要把数据保存到数据库" --prompt
 
 # 添加知识（用位置参数指定分类）
-m78 add "标题" "内容" pro_steam design buysell
+m78 add "标题" "内容" base logger mylogger
 
 # apiobj 用 / 分隔表示函数层级
-m78 add "获取Buff价格" "实现get_buff_price..." steam scan buff_scan/get_price
+m78 add "参数验证函数" "实现参数校验..." aicode cli parser/validate
 
 # 列出知识
 m78 list --limit 10
