@@ -162,6 +162,4 @@ See `--help` for details.
 | apimicro | Microservice | api, workflow, config |
 | apiobj | Entity/Class | user, order, payment |
 
-## License
 
-MIT
