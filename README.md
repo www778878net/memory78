@@ -19,6 +19,8 @@
 
 **Windows:** 下载 `m78.exe`，放到项目目录或添加到 PATH。
 
+**Claude Skill:** 复制 `skills/memory78` 目录到 `.claude/skills/`。
+
 ## 快速开始
 
 ```bash
@@ -156,10 +158,11 @@ m78 list --limit 10 --order desc
 
 ## 四级分类说明
 
-| 级别     | 说明    | 示例                  |
-| -------- | ------- | --------------------- |
-| apisys   | 大系统  | project, steam, data  |
-| apimicro | 微服务  | api, workflow, config |
-| apiobj   | 实体/类 | user, order, payment  |
+| 级别     | 说明           | 示例                        |
+| -------- | -------------- | --------------------------- |
+| apisys   | 大系统         | project, steam, data        |
+| apimicro | 微服务         | api, workflow, config       |
+| apiobj   | 实体/类        | user, order, payment        |
+| apifun   | 函数/属性/方法 | login, validate, get_config |
 
 

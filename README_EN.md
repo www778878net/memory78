@@ -19,6 +19,8 @@ Download from [Releases](https://github.com/www778878net/memory78/releases).
 
 **Windows:** Download `m78.exe`, place in project directory or add to PATH.
 
+**Claude Skill:** Copy `skills/memory78` directory to `.claude/skills/`.
+
 ## Quick Start
 
 ```bash
@@ -161,5 +163,6 @@ See `--help` for details.
 | apisys | System | project, steam, data |
 | apimicro | Microservice | api, workflow, config |
 | apiobj | Entity/Class | user, order, payment |
+| apifun | Function/Method | login, validate, get_config |
 
 
