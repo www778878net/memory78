@@ -144,7 +144,73 @@ m78 search "关键词"
 --apiobj <value>     按实体过滤
 --tags <tag1,tag2>   标签过滤
 --limit <n>          限制数量
---mode <text|semantic|qmd>  搜索模式
+--mode <text|semantic|hybrid|qmd|auto>  搜索模式
+```
+
+### model - 模型管理
+
+管理 AI 模型的下载、检查和删除。
+
+```bash
+# 检查当前搜索级别和升级指引
+m78 model check
+
+# 下载模型（1=L1语义搜索，2=L2 QMD，不指定=升级到下一级）
+m78 model download 1
+m78 model download 2
+m78 model download              # 自动升级到下一级
+
+# 下载选项
+--huggingface                   # 使用 huggingface.co 原始源（国外用户）
+
+# 列出所有模型及下载状态
+m78 model list
+
+# 删除已下载的模型
+m78 model remove embedding      # 删除指定模型
+m78 model remove all            # 删除全部模型
+```
+
+**model check 输出示例：**
+
+```
+Memory78 搜索级别: L0 (文本搜索)
+
+模型状态:
+  ✗ embedding - 文本向量化（语义搜索核心） (329MB) [L1]
+  ✗ query-expansion - 查询扩展（QMD组件） (1280MB) [L2]
+  ✗ reranker - 结果重排序（QMD组件） (639MB) [L2]
+
+可用搜索模式: text, list, wiki
+
+升级到 L1 (语义搜索):
+  m78 model download 1    # 下载 ~350MB，开通 semantic/hybrid
+```
+
+### embed - 嵌入管理
+
+管理知识条目的向量嵌入，为语义搜索提供数据。
+
+```bash
+# 为未嵌入的条目生成向量
+m78 embed build
+
+# 查看嵌入状态
+m78 embed status
+
+# 重建所有嵌入（模型更换后使用）
+m78 embed rebuild
+```
+
+**embed status 输出示例：**
+
+```
+嵌入状态:
+  总条目:   150
+  已嵌入:   120 (80%)
+  未嵌入:   30
+
+运行 m78 embed build 生成嵌入向量
 ```
 
 ### list - 列出记忆
@@ -153,7 +219,7 @@ m78 search "关键词"
 m78 list --limit 10 --order desc
 ```
 
-### get / delete / import / export / daily
+### get / delete / import / export / daily / scan
 
 详见 `--help`。
 
@@ -163,6 +229,26 @@ m78 list --limit 10 --order desc
 | -------- | -------------------------------------------------- | ---------------------- |
 | 数据库   | `memory78/memory78.db`                             | SQLite + FTS5 全文索引 |
 | 文件     | `memory78/{apisys}/{apimicro}/{apiobj}/{title}.md` | Markdown/JSON          |
+| 模型     | `memory78/models/`                                 | GGUF 格式 AI 模型      |
+
+完整目录结构：
+
+```
+memory78/
+├── memory78.db                      # SQLite + FTS5 + 向量嵌入
+├── models/                          # 模型文件目录
+│   ├── embeddinggemma-300M-Q8_0.gguf
+│   ├── qmd-query-expansion-1.7B-q4_k_m.gguf
+│   └── qwen3-reranker-0.6b-q8_0.gguf
+├── index.md                         # 目录索引
+├── {apisys}/                        # 一级：系统
+│   ├── {apisys}.md
+│   └── {apimicro}/                  # 二级：微服务
+│       ├── {apimicro}.md
+│       └── {apiobj}/                # 三级：类/能力
+│           ├── {apiobj}.md
+│           └── {知识条目}.md
+```
 
 ## 搜索模式分级
 
@@ -195,9 +281,34 @@ m78 search "关键词" --mode auto
 
 自动按可用性降级：qmd → hybrid → text，哪个能用用哪个。
 
-## 模型说明
+## 渐进式升级
 
-> 模型下载地址：https://github.com/www778878net/models
+```
+安装 m78 → m78 model check → 显示 L0，提示升级步骤
+           ↓
+m78 model download 1 → 下载 embeddinggemma (~350MB)
+m78 embed build → 生成嵌入向量 → semantic/hybrid 搜索可用
+           ↓
+m78 model download 2 → 下载 query-expansion + reranker (~1.65GB)
+m78 search "关键词" --mode qmd → QMD 搜索可用
+```
+
+```bash
+# 第一步：零模型即可使用
+m78 add "标题" "内容"
+m78 search "关键词"              # text 模式，无需任何模型
+
+# 第二步：一条命令升级到 L1 语义搜索
+m78 model download 1            # 下载 embeddinggemma (~350MB)
+m78 embed build                 # 生成嵌入向量
+m78 search "自然语言描述" --mode semantic  # 开通！
+
+# 第三步：一条命令升级到 L2 QMD
+m78 model download 2            # 下载剩余模型 (~1.65GB)
+m78 search "关键词" --mode qmd  # 省 75-95% Token
+```
+
+## 模型说明
 
 | 模型文件                               | 用途         | 参数量 | 大小     | 被谁使用                  |
 | -------------------------------------- | ------------ | ------ | -------- | ------------------------- |
@@ -211,27 +322,11 @@ m78 search "关键词" --mode auto
 - **查询扩展(query-expansion)**：把简短查询扩展成多个变体，如"路由"→["路由机制", "route handler", "API路由"]，提升召回率
 - **结果重排序(reranker)**：对搜索结果重新排序，把最相关的排到最前面
 
-## 渐进式升级
+**模型下载源：**
 
-```
-安装 m78 → 直接用 text/list/wiki（零门槛）
-           ↓ 想要语义搜索
-    下载 1 个模型 (~350MB) → 开通 semantic / hybrid
-           ↓ 想要省 Token
-    再下载 2 个模型 (~1.65GB) → 开通 qmd（省 75-95% Token）
-```
-
-```bash
-# 第一步：零模型即可使用
-m78 add "标题" "内容"
-m78 search "关键词"              # text 模式，无需任何模型
-
-# 第二步：下载 embeddinggemma 后开通语义搜索
-m78 search "自然语言描述" --mode semantic
-
-# 第三步：下载全部 3 个模型后开通 QMD
-m78 search "关键词" --mode qmd   # 省 75-95% Token
-```
+- 国内用户：自动从 hf-mirror.com 下载（直连，无需代理）
+- 国外用户：`m78 model download --huggingface` 使用 huggingface.co
+- 支持断点续传
 
 ## 四级分类说明
 
@@ -241,5 +336,3 @@ m78 search "关键词" --mode qmd   # 省 75-95% Token
 | apimicro | 微服务         | api, workflow, config       |
 | apiobj   | 实体/类        | user, order, payment        |
 | apifun   | 函数/属性/方法 | login, validate, get_config |
-
-

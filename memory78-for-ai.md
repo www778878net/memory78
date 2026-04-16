@@ -245,6 +245,39 @@ m78 delete <完整ID>
 
 ---
 
+## 六B、模型与嵌入命令
+
+**AI 在首次使用语义搜索前，应检查模型状态并引导用户下载。**
+
+```bash
+# 检查当前搜索级别
+m78 model check
+# 输出：L0/L1/L2，及升级指引
+
+# 下载模型升级到 L1（语义搜索）
+m78 model download 1
+# 下载 embeddinggemma (~350MB)，从 hf-mirror.com
+
+# 生成嵌入向量
+m78 embed build
+# 为所有未嵌入的知识条目生成向量
+
+# 查看嵌入状态
+m78 embed status
+# 显示已嵌入/未嵌入条目数
+
+# 使用语义搜索
+m78 search "自然语言描述" --mode semantic
+m78 search "关键词" --mode hybrid
+```
+
+**AI 行为指引：**
+- 当用户使用 `--mode semantic` 或 `--mode hybrid` 搜索时，如果模型未下载，提示运行 `m78 model download 1`
+- 当模型已下载但嵌入未生成时，提示运行 `m78 embed build`
+- 添加新知识后，如果处于 L1/L2 级别，不需要手动触发 embed build（系统会在搜索时自动处理缺失嵌入）
+
+---
+
 ## 七、注意事项
 
 1. **路径配置三种方式** - 环境变量、配置文件、当前目录

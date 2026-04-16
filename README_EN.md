@@ -128,7 +128,73 @@ m78 search "keyword"
 --apiobj <value>     Filter by entity
 --tags <tag1,tag2>   Filter by tags
 --limit <n>          Limit results
---mode <text|semantic|qmd>  Search mode
+--mode <text|semantic|hybrid|qmd|auto>  Search mode
+```
+
+### model - Model management
+
+Manage AI model downloads, checks, and removal.
+
+```bash
+# Check current search level and upgrade guide
+m78 model check
+
+# Download models (1=L1 semantic, 2=L2 QMD, no arg=upgrade to next level)
+m78 model download 1
+m78 model download 2
+m78 model download              # Auto-upgrade to next level
+
+# Download options
+--huggingface                   # Use huggingface.co (for users outside China)
+
+# List all models and download status
+m78 model list
+
+# Remove downloaded models
+m78 model remove embedding      # Remove specific model
+m78 model remove all            # Remove all models
+```
+
+**model check output example:**
+
+```
+Memory78 Search Level: L0 (Text Search)
+
+Model Status:
+  ✗ embedding - Text vectorization (semantic search core) (329MB) [L1]
+  ✗ query-expansion - Query expansion (QMD component) (1280MB) [L2]
+  ✗ reranker - Result reranking (QMD component) (639MB) [L2]
+
+Available modes: text, list, wiki
+
+Upgrade to L1 (Semantic Search):
+  m78 model download 1    # Download ~350MB, enable semantic/hybrid
+```
+
+### embed - Embedding management
+
+Manage vector embeddings for knowledge entries, providing data for semantic search.
+
+```bash
+# Generate embeddings for entries without vectors
+m78 embed build
+
+# Show embedding status
+m78 embed status
+
+# Rebuild all embeddings (use after model change)
+m78 embed rebuild
+```
+
+**embed status output example:**
+
+```
+Embedding Status:
+  Total:     150
+  Embedded:  120 (80%)
+  Not embedded: 30
+
+Run m78 embed build to generate embeddings
 ```
 
 ### list - List memories
@@ -137,7 +203,7 @@ m78 search "keyword"
 m78 list --limit 10 --order desc
 ```
 
-### get / delete / import / export / daily
+### get / delete / import / export / daily / scan
 
 See `--help` for details.
 
@@ -145,8 +211,28 @@ See `--help` for details.
 
 | Storage | Path | Description |
 |---------|------|-------------|
-| Database | `memory78/memory78.db` | SQLite + FTS5 full-text index |
+| Database | `memory78/memory78.db` | SQLite + FTS5 full-text index + vector embeddings |
 | Files | `memory78/{apisys}/{apimicro}/{apiobj}/{title}.md` | Markdown/JSON |
+| Models | `memory78/models/` | GGUF format AI models |
+
+Full directory structure:
+
+```
+memory78/
+├── memory78.db                      # SQLite + FTS5 + vector embeddings
+├── models/                          # Model files directory
+│   ├── embeddinggemma-300M-Q8_0.gguf
+│   ├── qmd-query-expansion-1.7B-q4_k_m.gguf
+│   └── qwen3-reranker-0.6b-q8_0.gguf
+├── index.md                         # Directory index
+├── {apisys}/                        # Level 1: System
+│   ├── {apisys}.md
+│   └── {apimicro}/                  # Level 2: Microservice
+│       ├── {apimicro}.md
+│       └── {apiobj}/                # Level 3: Entity/Class
+│           ├── {apiobj}.md
+│           └── {knowledge_entry}.md
+```
 
 ## Search Mode Tiers
 
@@ -179,9 +265,34 @@ m78 search "keyword" --mode auto
 
 Automatically degrades by availability: qmd → hybrid → text.
 
-## Model Details
+## Progressive Upgrade
 
-> Model download: https://github.com/www778878net/models
+```
+Install m78 → m78 model check → Shows L0, suggests upgrade steps
+              ↓
+m78 model download 1 → Downloads embeddinggemma (~350MB)
+m78 embed build → Generates embeddings → semantic/hybrid search available
+              ↓
+m78 model download 2 → Downloads query-expansion + reranker (~1.65GB)
+m78 search "keyword" --mode qmd → QMD search available
+```
+
+```bash
+# Step 1: Works without any models
+m78 add "Title" "Content"
+m78 search "keyword"              # text mode, no models needed
+
+# Step 2: One command to upgrade to L1 semantic search
+m78 model download 1            # Download embeddinggemma (~350MB)
+m78 embed build                 # Generate embeddings
+m78 search "natural language query" --mode semantic  # Enabled!
+
+# Step 3: One command to upgrade to L2 QMD
+m78 model download 2            # Download remaining models (~1.65GB)
+m78 search "keyword" --mode qmd  # Saves 75-95% tokens
+```
+
+## Model Details
 
 | Model File                              | Purpose          | Params | Size     | Used By                   |
 |-----------------------------------------|------------------|--------|----------|---------------------------|
@@ -195,27 +306,11 @@ Automatically degrades by availability: qmd → hybrid → text.
 - **Query Expansion (query-expansion)**: Expands short queries into multiple variants, e.g. "routing" → ["routing mechanism", "route handler", "API routing"], improving recall
 - **Result Reranking (reranker)**: Reorders search results to put the most relevant ones first
 
-## Progressive Upgrade
+**Model download source:**
 
-```
-Install m78 → Use text/list/wiki immediately (zero setup)
-              ↓ Want semantic search?
-       Download 1 model (~350MB) → Enable semantic / hybrid
-              ↓ Want to save tokens?
-       Download 2 more models (~1.65GB) → Enable qmd (saves 75-95% tokens)
-```
-
-```bash
-# Step 1: Works without any models
-m78 add "Title" "Content"
-m78 search "keyword"              # text mode, no models needed
-
-# Step 2: Download embeddinggemma to enable semantic search
-m78 search "natural language query" --mode semantic
-
-# Step 3: Download all 3 models to enable QMD
-m78 search "keyword" --mode qmd   # Saves 75-95% tokens
-```
+- China users: Auto-downloads from hf-mirror.com (direct access, no proxy needed)
+- International users: `m78 model download --huggingface` to use huggingface.co
+- Resume support for interrupted downloads
 
 ## 4-Level Classification
 
@@ -225,5 +320,3 @@ m78 search "keyword" --mode qmd   # Saves 75-95% tokens
 | apimicro | Microservice | api, workflow, config |
 | apiobj | Entity/Class | user, order, payment |
 | apifun | Function/Method | login, validate, get_config |
-
-
