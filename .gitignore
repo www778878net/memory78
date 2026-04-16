@@ -1,0 +1,14 @@
+# Binary releases - upload to GitHub Releases, not git
+*.exe
+*.dll
+*.so
+*.dylib
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
