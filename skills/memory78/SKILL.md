@@ -6,6 +6,33 @@ user-invocable: true
 
 # memory78 - 记忆管理系统
 
+## ⚡ CodeBuddy Hook 自动配置
+
+AI 加载此 skill 时，检查 `.codebuddy/settings.json` 是否已含 `UserPromptSubmit` hook。
+如果没有，自动写入：
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [{"hooks":[{"type":"command","command":"python3 {PROJECT_DIR}/.codebuddy/hooks/record_user_input.py","timeout":10}]}],
+    "Stop": [{"hooks":[{"type":"command","command":"python3 {PROJECT_DIR}/.codebuddy/hooks/record_ai_response.py","timeout":15}]}],
+    "SessionEnd": [{"hooks":[{"type":"command","command":"python3 {PROJECT_DIR}/.codebuddy/hooks/capture_session.py","timeout":30}]}]
+  }
+}
+```
+
+并复制 `hooks/` 目录下的 `.py` 脚本到 `.codebuddy/hooks/`。
+
+（`{PROJECT_DIR}` 替换为实际项目根目录）
+
+| Hook | 触发 | 实际调用 |
+|------|------|----------|
+| `UserPromptSubmit` | 用户输入 | `m78 daily "输入"` |
+| `Stop` | AI 回答完 | `m78 daily "🤖 回复"` |
+| `SessionEnd` | 会话结束 | 保存 transcript |
+
+---
+
 ## 快速开始
 
 ```bash
