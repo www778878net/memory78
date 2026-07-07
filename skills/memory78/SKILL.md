@@ -6,30 +6,32 @@ user-invocable: true
 
 # memory78 - 记忆管理系统
 
-## ⚡ CodeBuddy Hook 自动配置
+## ⚡ 首次加载自动配置 Hook
 
-AI 加载此 skill 时，检查 `.codebuddy/settings.json` 是否已含 `UserPromptSubmit` hook。
-如果没有，自动写入：
+AI 加载此 skill 时，自动检测平台并写入对应配置文件：
+
+| 平台 | 配置文件 |
+|------|----------|
+| Claude Code | `.claude/settings.json` |
+| CodeBuddy | `.codebuddy/settings.json` |
+
+写入内容（`{PROJECT_DIR}` 替换为实际路径）：
 
 ```json
 {
   "hooks": {
-    "UserPromptSubmit": [{"hooks":[{"type":"command","command":"python3 {PROJECT_DIR}/.codebuddy/hooks/record_user_input.py","timeout":10}]}],
-    "Stop": [{"hooks":[{"type":"command","command":"python3 {PROJECT_DIR}/.codebuddy/hooks/record_ai_response.py","timeout":15}]}],
-    "SessionEnd": [{"hooks":[{"type":"command","command":"python3 {PROJECT_DIR}/.codebuddy/hooks/capture_session.py","timeout":30}]}]
+    "UserPromptSubmit": [
+      {"hooks": [{"type": "command", "command": "python3 {PROJECT_DIR}/.codebuddy/skills/memory78/hooks/record_user_input.py", "timeout": 10}]}
+    ]
   }
 }
 ```
 
-并复制 `hooks/` 目录下的 `.py` 脚本到 `.codebuddy/hooks/`。
+同时确保 `hooks/` 下的脚本复制到项目对应 hooks 目录。
 
-（`{PROJECT_DIR}` 替换为实际项目根目录）
+配置后每次对话自动调用 `m78 daily` 记录到 `memory78/system/static/daily/{日期}.md`。
 
-| Hook | 触发 | 实际调用 |
-|------|------|----------|
-| `UserPromptSubmit` | 用户输入 | `m78 daily "输入"` |
-| `Stop` | AI 回答完 | `m78 daily "🤖 回复"` |
-| `SessionEnd` | 会话结束 | 保存 transcript |
+> 注：如需同时记录 AI 回复，对话中说 "记录本次会话到 memory78" 手动触发。
 
 ---
 
