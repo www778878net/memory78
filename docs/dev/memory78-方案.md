@@ -15,12 +15,23 @@
 
 ### 2.1 知识组织规则（详见 `memory78/readme.md`，原样有效）
 
-- 三级目录：`apisys → apimicro → apiobj`，**目录只建到三级**
-- 每层目录必须有同名 `.md`
-- **一、二级只写表格清单**；**三级才放实际内容**（摘要 + 关键知识 + 原始文档）
+- **四层结构：第三级还是目录，第四层才是文档**：
+
+```
+{apisys}/                        ← 第一层：目录
+├── {apisys}.md                  ← 清单页（只写表格）
+└── {apimicro}/                  ← 第二层：目录
+    ├── {apimicro}.md            ← 清单页（只写表格）
+    └── {apiobj}/                ← 第三层：还是目录 ★
+        └── {apiobj}.md          ← 第四层：文档（实际内容放这里）
+```
+
+- 每层目录必须有同名 `.md`：`{apisys}.md` / `{apimicro}.md` 是**清单页**（只写表格，禁止写详细内容）；
+  `{apiobj}/{apiobj}.md` 是**内容页**（摘要 + 关键知识 + 原始文档）
 - apiobj.md 必须含 frontmatter：`title / tags / apisys / apimicro / apiobj`
 - **内容用中文，标题（文件名）不用中文**（避免编码问题）
 - apimicro / apiobj 不允许下划线（一个单词）；apiobj 可用 `/` 分隔表示函数层级
+- 长内容：放 apiobj 目录内独立英文命名文件，摘要页链接过去；或直接引用项目内相对路径
 - `m78 add` 用位置参数：`m78 add "标题" "内容" apisys apimicro apiobj`
 - 新建子目录后用 `m78 scan --fix` 同步同名.md 的子目录清单
 
