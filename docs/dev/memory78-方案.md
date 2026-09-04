@@ -44,7 +44,7 @@
 | 3 | **db 集中到 NAS（`m78nas`）** | 固定目录 `{项目根}/m78nas`，**只存数据库**，不存知识 md；有 NAS 就把整个目录软链到 NAS，路径不变 |
 | 4 | **`m78 add` 只添加进 wait 目录** | AI 产生的一切知识先落 `{对应库}/system/wait/` |
 | 5 | **必须用户手动才转到正式目录** | 归位（分类分目录）由用户做，AI 不得代劳 |
-| 6 | **会话知识整理到 `system/static/daily`** | 每日日志，钩子硬编码路径（个人库） |
+| 6 | **会话知识整理到 `system/static/daily`** | 每日日志，钩子硬编码路径（**项目库** m78project） |
 | 7 | **我自己整理的才进知识** | wait 里 AI 写的不算入库，用户搬走才算 |
 
 ---
@@ -93,10 +93,11 @@ memory78_path = /workspace/memory78
 ### 3.3 流程
 
 ```
-项目库：AI: m78 add "标题" "内容" system wait wait     → m78project/system/wait/标题.md
-个人库：AI: m78 add "标题" "内容" system wait wait     → memory78/system/wait/标题.md
+项目库（默认）：m78 add "标题" "内容" wait wait wait   → m78project/system/wait/标题.md
+个人/公共库：m78 add --personal "标题" "内容" wait        → memory78/system/wait/标题.md
 用户：定期从 wait 里挑，手动归位到三级目录（改路径 + 改 front-matter）
-daily：钩子每次会话自动追加 memory78/system/static/daily/YYYYMMDD.md（个人库）
+daily：钩子每次会话自动追加 m78project/system/static/daily/YYYYMMDD.md（**项目库**）
+记忆分级（short/mid/long）：m78 digest 在项目库内产出（LLM 建议，用户手动确认）
 ```
 
 ---
@@ -107,9 +108,9 @@ daily：钩子每次会话自动追加 memory78/system/static/daily/YYYYMMDD.md�
 |---|---|
 | 22 条存量项目知识 | 已从 `memory78/system/wait/` **迁移到 `m78project/system/wait/`**（拍平命名 `原路径__文件名.md`），**等用户手动归位** |
 | `product/`（含子模块） | 已随项目知识迁到 `m78project/product/`，349 个 SQL 完整 |
-| 个人/项目分工 | ✅ 纠正：memory78=个人，m78project=项目（原来把项目知识误放个人库） |
+| 个人/项目分工 | ✅ memory78=个人/公共，m78project=项目；**记忆分级（daily/memo/short/mid/long）已迁入项目库**，daily 钩子改写项目库 |
 | `m78nas/` | 定位改为**只存 db**，不再存知识 md，整个目录**不入 Git** |
-| db | 个人库 db（`personal.db`）26 条、项目库 db（`ehs-ai-agent.db`）0 条（等归位）；真身都在 `m78nas/`，记忆库内 `.db` 是不入 Git 的软链 |
+| db | **项目库 db（`ehs-ai-agent.db`）25 条**（daily 9 + memo 16，记忆分级索引）；**个人库 db（`personal.db`）0 条**（公共知识库，待存）；真身都在 `m78nas/`，记忆库内 `.db` 是不入 Git 的软链 |
 | md 软链 | `static/memo` → `.codebuddy/memory`，软链本体**入 Git**（120000），16 条内容可被 import |
 | daily | ✅ 已修复（始终写 md），`20260904.md` 正常生成 |
 
@@ -134,7 +135,7 @@ md 是人可读的真身，db 只是索引。一行改动。
 
 | 记忆 | 现在的位置 | 谁写 | 性质 |
 |---|---|---|---|
-| 用户输入流水 | `memory78/system/static/daily/YYYYMMDD.md` | 钩子自动（每次发消息追加） | **原始记录 raw** |
+| 用户输入流水 | `m78project/system/static/daily/YYYYMMDD.md` | 钩子自动（每次发消息追加，**项目库**） | **原始记录 raw** |
 | AI 工作记忆 | `.codebuddy/memory/`（`MEMORY.md` + 日期.md） | AI 收工写 | **原始记录 raw** |
 | 知识库 | `memory78/{apisys}/...` | **用户手动归位** | 长期知识 |
 
@@ -142,10 +143,10 @@ md 是人可读的真身，db 只是索引。一行改动。
 
 ### 6.2 目标形态（已定稿）
 
-**全部在个人库 `memory78/system/static/` 下**（与 daily 同级）：
+**在项目库 `m78project/system/static/` 下**（与 daily 同级）：
 
 ```
-memory78/system/static/
+m78project/system/static/
 ├── daily/     ← L0 原始流水（钩子自动，已在跑）
 ├── memo/      ← L0 AI 工作记忆真身（`.codebuddy/memory`，知识库内为软链）
 ├── short/     ← L1 短期：m78 digest 自动提取（天级）
@@ -153,8 +154,8 @@ memory78/system/static/
 └── long/      ← L3 长期候选：用户挑选 → 移入三级知识目录
 ```
 
-> 项目库 `m78project/` 也可复用同样的 `system/static/` 分级（daily/memo/short/mid/long），
-> 但项目知识与个人流水分开，各自维护。
+> 运行位在项目库 `m78project/`；个人/公共库 `memory78/` 也可复用同样分级，
+> 收集跨项目公共知识。
 
 漏斗：**raw（原文，自动）→ short（天级提炼，自动）→ mid（周级沉淀，自动）→ long（人工挑选）→ 知识库（人工归位）**
 
@@ -165,7 +166,7 @@ memory78/system/static/
 
 ```
 真身：.codebuddy/memory/（workbuddy/CodeBuddy 平台约定目录，AI 工作记忆 md 的物理真身）
-软链：memory78/system/static/memo → .codebuddy/memory     ← 入 Git（模式 120000）
+软链：m78project/system/static/memo → .codebuddy/memory     ← 入 Git（模式 120000）
 ```
 
 - **memo 软链本体入 Git**：clone 下来即保留链接结构，内容随仓库分发
