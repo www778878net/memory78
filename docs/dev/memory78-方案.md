@@ -182,15 +182,66 @@ AI 读写 `.codebuddy/memory/` 的习惯完全不变（软链透明），但数�
 
 ---
 
-## 七、待办
+## 七、NAS 接入（未完成）
 
-| # | 事项 | 等谁 |
+### 7.1 现状
+
+`m78nas/` 目前是**项目根下的普通本地目录**（已定稿的设计就是它，有 NAS 才换软链）。
+**CNB 云容器里没有任何 NAS 挂载**（`/mnt` `/media` 全空），且容器在云端、NAS 多半在局域网 ⇒ 网络不通。
+
+### 7.2 没接 NAS 的实际影响
+
+| 数据 | 现在怎样 | 接了 NAS 后 |
 |---|---|---|
-| 1 | 用户从 `system/wait/` 手动归位 21 条 | 用户 |
-| 2 | 实施记忆分级（§六）：memo 物理迁入 + 建 short/mid/long + 反向软链 | 用户点头即做 |
-| 3 | `m78 digest` 子命令（LLM 提炼，规格 §6.4） | 研发 |
-| 4 | `m78 import` 修三处 + 按目录打来源标签（§6.5-2） | 研发，规格 `import-cmd-patch.md` |
-| 5 | 重建 `memory78.db` | 依赖 #4 |
-| 6 | 个人库开始使用（`m78nas/personal/wait/`） | 随时 |
+| 知识 md | ✅ 不受影响（Git 管，环境重建 clone 回来） | 不变 |
+| `m78nas/projects/*.db`（索引+向量） | ⚠️ **环境重建即丢**，要 `m78 import` 重建；L0 无向量=秒级可接受，**升 L1 后向量要重算（10~50 分钟）** | db 真身在 NAS，重建环境软链回来即用 |
+| `m78nas/personal/`（个人库） | ⚠️ 环境重建即丢（gitignore 不进项目仓） | 真身在 NAS，不丢 |
 
-> daily 钩子已修（始终写 md），`20260904.md` 已生成。
+### 7.3 接入三途径（按可行性）
+
+| 途径 | 做法 | 适用 |
+|---|---|---|
+| **A. 公网可达的 NAS** | NAS 做公网映射/frp/Tailscale，云容器挂 SMB/NFS 到 `/mnt/nas`，`ln -s /mnt/nas/m78nas m78nas` | 唯一能让**云环境**用上真 NAS 的路 |
+| **B. 本地机器直连** | 办公室/家里机器挂 NAS，`m78nas` 放 NAS 上；**云环境不用 NAS**（db 每次重建） | 最省事；个人库 md 用私有 Git 仓多机同步 |
+| **C. ZOS 对象存储当中转** | 🔴 **SQLite 不能放对象存储**（对象接口无随机写）；只能放 db 快照包（tar），环境重建时拉包解压 | 兜底：给云环境保住"算好的向量" |
+
+### 7.4 待你提供（选 A 时）
+
+NAS 公网地址 + 协议（SMB/NFS）+ 端口 + 账号凭据。没有公网 NAS 就选 B（现状已可用）。
+
+---
+
+## 八、待办全量清单
+
+### 用户做
+| # | 事项 | 说明 |
+|---|---|---|
+| 1 | 从 `system/wait/` 手动归位 21 条 | git mv + 改 front-matter + 更新清单页（SOP 见 §五） |
+| 2 | NAS 选型：A 公网 / B 本地（§七） | 选 A 给连接信息 |
+| 3 | memo 敏感内容进 Git 的取舍 | 已在主仓（私有仓）；不接受则 gitignore memo |
+| 4 | 挑选 long 候选入知识库 | digest 跑起来之后 |
+
+### AI 可直接做（随时开工）
+| # | 事项 | 说明 |
+|---|---|---|
+| 5 | digest 过渡方案：收工时人工写 `short/当天.md` | 零开发，先跑通格式；等 LLM 配置定了再进 CLI |
+| 6 | `readme.md` 的 apisys 索引更新 | 「已有的 apisys」表还是旧的（aicode/steam/base…），应改为 product/vault/system |
+| 7 | `memory78-for-ai.md` / `SKILL.md` 同步 | wait 流程、daily 修复、m78nas 分级、digest 都没写进 AI 指南 |
+| 8 | 个人库启用配置 | `m78nas/personal/` 已建但空；ini 在 `~/.config`（环境重建会丢，**该加进 restore.sh**） |
+| 9 | short/mid/long 空目录加 `.gitkeep` | 让目录结构随 Git 分发 |
+
+### 研发做（规格已出）
+| # | 事项 | 规格 |
+|---|---|---|
+| 10 | ~~`m78 import` 修复（follow_links/wait/子模块/front-matter/防翻倍）~~ | ✅ **已由 AI 完成并上线**（`a42fb99`，二进制已替换，db 已重建 26 条全对） |
+| 11 | `m78 digest` 子命令（LLM 提炼 short/mid/long） | §6.4；**前置：定 LLM API 与 key 来源** |
+| 12 | `m78 export` 按目录打来源标签 + 搬家后分类同步 | §6.5-2；export 目前按库字段建目录，文件搬家会搬错位置 |
+| 13 | Windows 版二进制更新 | `m78_win.exe` 还是旧逻辑（交叉编译 musl） |
+
+### 安全遗留（非 memory78，一并提醒）
+| # | 事项 |
+|---|---|
+| 14 | GitHub token（聊天明文出现过）+ 阿里云/天翼云超管 AK 轮换 |
+
+> 已完成：daily 钩子修复（始终写 md）、m78nas 目录与 db 软链、CLI import 五项修复、
+> memo 入 DB（16 条）、db 重建 26 条全对、规则 1.mdc 铁律、方案文档本身。
