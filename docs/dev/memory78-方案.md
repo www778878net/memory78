@@ -57,20 +57,23 @@
 {项目根}/
 ├── memory78/                       ← 个人记忆库（md 真身，Git 管）★原来误当项目库，已纠正
 │   ├── readme.md                   ← 规则权威出处
-│   ├── memory78.db →（软链到 NAS）
+│   ├── memory78.db →（软链 → m78nas/personal.db，db 不入 Git）
 │   └── system/
 │       ├── static/daily/           ← 🔴 每日日志（钩子硬编码），不参与整理
-│       ├── static/memo/  short/  mid/  long/
+│       ├── static/memo/            ← 🔗 软链 → .codebuddy/memory（AI 工作记忆 md）
+│       │                             软链本体入 Git（120000），内容随仓库分发
+│       ├── static/short/  mid/  long/
 │       └── wait/                   ← 个人库 AI 写入区，用户手动归位
 ├── m78project/                     ← 项目记忆库（md 真身，Git 管）★2026-09-04 新增
 │   ├── product/                    ← apisys（原 saas 项目知识）
 │   │   └── database/               ← Git 子模块（SQL schema，非知识条目）
+│   ├── memory78.db →（软链 → m78nas/projects/ehs-ai-agent.db，db 不入 Git）
 │   └── system/
 │       └── wait/                   ← 项目库 AI 写入区，用户手动归位（22 条迁移到这）
-└── m78nas/                         ← 数据库存储层（只存 db，不存知识 md）
+└── m78nas/                         ← 数据库存储层（只存 db，不存知识 md，整个目录不入 Git）
     ├── projects/
-    │   └── ehs-ai-agent.db         ← 项目库 db（软链回 m78project/memory78.db）
-    └── personal.db                 ← 个人库 db
+    │   └── ehs-ai-agent.db         ← 项目库 db 真身
+    └── personal.db                 ← 个人库 db 真身
 ```
 
 ### 3.2 配置（2026-09-04 修订：路径已改到新分工）
@@ -83,8 +86,9 @@ memory78_path = /workspace/m78project
 memory78_path = /workspace/memory78
 ```
 
-切换 = 换目录。`.gitignore`：db 真身在 `m78nas/`（**不入库**，运行时/ NAS 生成），
-记忆库内的 `memory78.db` 是**软链接占位（入 Git）**，clone 下来即有完整结构。
+切换 = 换目录。**db 一律不入 Git**：真身在 `m78nas/`，记忆库内的 `memory78.db` 只是
+指向它的软链（本地运行时用，同样不入库）；clone 下来后需自行 `m78 import` 生成 db 或接 NAS。
+**md 软链（`static/memo` → `.codebuddy/memory`）本体入 Git**（模式 `120000`），内容随仓库分发。
 
 ### 3.3 流程
 
@@ -104,8 +108,9 @@ daily：钩子每次会话自动追加 memory78/system/static/daily/YYYYMMDD.md�
 | 22 条存量项目知识 | 已从 `memory78/system/wait/` **迁移到 `m78project/system/wait/`**（拍平命名 `原路径__文件名.md`），**等用户手动归位** |
 | `product/`（含子模块） | 已随项目知识迁到 `m78project/product/`，349 个 SQL 完整 |
 | 个人/项目分工 | ✅ 纠正：memory78=个人，m78project=项目（原来把项目知识误放个人库） |
-| `memory78/db` | 软链指向 NAS `projects/ehs-ai-agent.db`（项目库 db） |
-| `m78nas/` | 定位改为**只存 db**，不再存知识 md |
+| `m78nas/` | 定位改为**只存 db**，不再存知识 md，整个目录**不入 Git** |
+| db | 个人库 db（`personal.db`）26 条、项目库 db（`ehs-ai-agent.db`）0 条（等归位）；真身都在 `m78nas/`，记忆库内 `.db` 是不入 Git 的软链 |
+| md 软链 | `static/memo` → `.codebuddy/memory`，软链本体**入 Git**（120000），16 条内容可被 import |
 | daily | ✅ 已修复（始终写 md），`20260904.md` 正常生成 |
 
 ---
@@ -142,7 +147,7 @@ md 是人可读的真身，db 只是索引。一行改动。
 ```
 memory78/system/static/
 ├── daily/     ← L0 原始流水（钩子自动，已在跑）
-├── memo/      ← L0 AI 工作记忆真身（从 .codebuddy/memory 物理改进来）
+├── memo/      ← L0 AI 工作记忆真身（`.codebuddy/memory`，知识库内为软链）
 ├── short/     ← L1 短期：m78 digest 自动提取（天级）
 ├── mid/       ← L2 中期：m78 digest --mid 自动沉淀（周级，去重合并）
 └── long/      ← L3 长期候选：用户挑选 → 移入三级知识目录
@@ -153,19 +158,19 @@ memory78/system/static/
 
 漏斗：**raw（原文，自动）→ short（天级提炼，自动）→ mid（周级沉淀，自动）→ long（人工挑选）→ 知识库（人工归位）**
 
-### 6.3 memo 必须物理放知识库（不能软链）
+### 6.3 AI 工作记忆（memo）通过 md 软链接入（本方案已落实）
 
-🔴 `m78 import` 的目录扫描（walkdir）**默认不跟随符号链接** ——
-`.codebuddy/memory` 若软链到知识库，内容**永远进不了 DB**。
-
-正确做法（**物理改进来 + 反向软链**）：
+**memo 用 md 软链接接入知识库**（用户拍板）：`workbuddy`/`.codebuddy` 的 memory 目录是软链真实源，
+在知识库内放软链占位，本体随 Git 分发。
 
 ```
-真身：memory78/system/static/memo/          ← 物理（import 扫得到，进 DB，进 Git）
-反向：.codebuddy/memory → 指向上面的真身     ← 平台约定路径照常读写，写入即落知识库
+真身：.codebuddy/memory/（workbuddy/CodeBuddy 平台约定目录，AI 工作记忆 md 的物理真身）
+软链：memory78/system/static/memo → .codebuddy/memory     ← 入 Git（模式 120000）
 ```
 
-AI 读写 `.codebuddy/memory/` 的习惯完全不变（软链透明），但数据真身在知识库里。
+- **memo 软链本体入 Git**：clone 下来即保留链接结构，内容随仓库分发
+- 🔴 依赖 m78 import 能跟随软链：import 需在扫描时 follow 软链，memo 内容才能进 DB（已实现，16 条正确导入）
+- db 反之**绝不入 Git**（见 §3.2）——软链接只有 md 记忆目录这一处
 
 ### 6.4 命令：`m78 digest`（CLI 子命令，提给研发）
 
@@ -254,3 +259,4 @@ NAS 公网地址 + 协议（SMB/NFS）+ 端口 + 账号凭据。没有公网 NAS
 > memo 入 DB（16 条）、db 重建 26 条全对、规则 1.mdc 铁律、方案文档本身。
 > 2026-09-04 追加：个人/项目彻底分流（memory78=个人，m78project=项目），
 > 22 条项目知识与 product/database 子模块迁入 m78project，`.gitmodules` 同步更新 `a42fb99`。
+> 同日再订正：**md 软链入 Git**（memo → .codebuddy/memory，120000），**db 绝不入 Git**（真身在 m78nas）。
