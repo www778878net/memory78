@@ -41,68 +41,71 @@
 |---|---|---|
 | 1 | **分为个人和项目两个库** | 个人库 / 项目库，物理分开 |
 | 2 | **个人的链接进项目来** | 个人库中可共享的内容，链接进项目使用 |
-| 3 | **db 和个人的存 NAS（`m78nas`）** | 固定目录 `{项目根}/m78nas`，有 NAS 就把整个目录软链到 NAS，路径不变 |
-| 4 | **`m78 add` 只添加进 wait 目录** | AI 产生的一切知识先落 `memory78/system/wait/` |
+| 3 | **db 集中到 NAS（`m78nas`）** | 固定目录 `{项目根}/m78nas`，**只存数据库**，不存知识 md；有 NAS 就把整个目录软链到 NAS，路径不变 |
+| 4 | **`m78 add` 只添加进 wait 目录** | AI 产生的一切知识先落 `{对应库}/system/wait/` |
 | 5 | **必须用户手动才转到正式目录** | 归位（分类分目录）由用户做，AI 不得代劳 |
-| 6 | **会话知识整理到 `system/static/daily`** | 每日日志，钩子硬编码路径 |
+| 6 | **会话知识整理到 `system/static/daily`** | 每日日志，钩子硬编码路径（个人库） |
 | 7 | **我自己整理的才进知识** | wait 里 AI 写的不算入库，用户搬走才算 |
 
 ---
 
 ## 三、落地形态
 
-### 3.1 目录
+### 3.1 目录（2026-09-04 修订：个人/项目彻底分开，NAS 只存 db）
 
 ```
 {项目根}/
-├── memory78/                       ← 项目库（md 真身，Git 管）
+├── memory78/                       ← 个人记忆库（md 真身，Git 管）★原来误当项目库，已纠正
 │   ├── readme.md                   ← 规则权威出处
-│   ├── product/                    ← apisys（原 saas）
-│   │   └── database/               ← Git 子模块（SQL schema，非知识条目）
-│   ├── vault/                      ← apisys（空，等人工归位）
+│   ├── memory78.db →（软链到 NAS）
 │   └── system/
 │       ├── static/daily/           ← 🔴 每日日志（钩子硬编码），不参与整理
-│       └── wait/                   ← AI 写入区，用户手动归位
-└── m78nas/                         ← 固定存储（有 NAS 就软链到这里）
-    ├── personal/                   ← 个人公共库（不进项目仓）
-    │   ├── shared/  private/  wait/
-    │   └── memory78.db
-    └── projects/
-        └── ehs-ai-agent.db         ← 项目库 db（软链回 memory78/memory78.db）
+│       ├── static/memo/  short/  mid/  long/
+│       └── wait/                   ← 个人库 AI 写入区，用户手动归位
+├── m78project/                     ← 项目记忆库（md 真身，Git 管）★2026-09-04 新增
+│   ├── product/                    ← apisys（原 saas 项目知识）
+│   │   └── database/               ← Git 子模块（SQL schema，非知识条目）
+│   └── system/
+│       └── wait/                   ← 项目库 AI 写入区，用户手动归位（22 条迁移到这）
+└── m78nas/                         ← 数据库存储层（只存 db，不存知识 md）
+    ├── projects/
+    │   └── ehs-ai-agent.db         ← 项目库 db（软链回 m78project/memory78.db）
+    └── personal.db                 ← 个人库 db
 ```
 
-### 3.2 配置（已生效）
+### 3.2 配置（2026-09-04 修订：路径已改到新分工）
 
 ```ini
-# {项目根}/docs/config/memory78.ini   → 项目库
-memory78_path = /workspace/memory78
+# {项目根}/docs/config/memory78.ini   → 项目库（项目记忆）
+memory78_path = /workspace/m78project
 
-# ~/.config/memory78.ini              → 个人库
-memory78_path = /workspace/m78nas/personal
+# ~/.config/memory78.ini              → 个人库（个人记忆）
+memory78_path = /workspace/memory78
 ```
 
-切换 = 换目录。`.gitignore`：`m78nas/personal/`、`m78nas/projects/*.db`
+切换 = 换目录。`.gitignore`：`m78nas/`（整个只存 db）
 
 ### 3.3 流程
 
 ```
-AI：m78 add "标题" "内容" system wait wait     → memory78/system/wait/标题.md
+项目库：AI: m78 add "标题" "内容" system wait wait     → m78project/system/wait/标题.md
+个人库：AI: m78 add "标题" "内容" system wait wait     → memory78/system/wait/标题.md
 用户：定期从 wait 里挑，手动归位到三级目录（改路径 + 改 front-matter）
-daily：钩子每次会话自动追加 memory78/system/static/daily/YYYYMMDD.md
+daily：钩子每次会话自动追加 memory78/system/static/daily/YYYYMMDD.md（个人库）
 ```
 
 ---
 
-## 四、当前状态（2026-09-04）
+## 四、当前状态（2026-09-04 修订）
 
 | 项 | 状态 |
 |---|---|
-| 21 条存量知识 | 在 `memory78/system/wait/`（拍平命名 `原路径__文件名.md`），**等用户手动归位** |
-| `product/` | 只剩 `database/` 子模块 |
-| `vault/` | 已清空 |
-| `m78nas/` | 已建好，db 已迁入并软链 |
-| `memory78.db` | 未重建（等 `m78 import` 修复，规格见 `import-cmd-patch.md`） |
-| daily | ⚠️ 有 bug，见 §五 |
+| 22 条存量项目知识 | 已从 `memory78/system/wait/` **迁移到 `m78project/system/wait/`**（拍平命名 `原路径__文件名.md`），**等用户手动归位** |
+| `product/`（含子模块） | 已随项目知识迁到 `m78project/product/`，349 个 SQL 完整 |
+| 个人/项目分工 | ✅ 纠正：memory78=个人，m78project=项目（原来把项目知识误放个人库） |
+| `memory78/db` | 软链指向 NAS `projects/ehs-ai-agent.db`（项目库 db） |
+| `m78nas/` | 定位改为**只存 db**，不再存知识 md |
+| daily | ✅ 已修复（始终写 md），`20260904.md` 正常生成 |
 
 ---
 
@@ -133,7 +136,7 @@ md 是人可读的真身，db 只是索引。一行改动。
 
 ### 6.2 目标形态（已定稿）
 
-**全部在 `system/static/` 下**（与 daily 同级）：
+**全部在个人库 `memory78/system/static/` 下**（与 daily 同级）：
 
 ```
 memory78/system/static/
@@ -143,6 +146,9 @@ memory78/system/static/
 ├── mid/       ← L2 中期：m78 digest --mid 自动沉淀（周级，去重合并）
 └── long/      ← L3 长期候选：用户挑选 → 移入三级知识目录
 ```
+
+> 项目库 `m78project/` 也可复用同样的 `system/static/` 分级（daily/memo/short/mid/long），
+> 但项目知识与个人流水分开，各自维护。
 
 漏斗：**raw（原文，自动）→ short（天级提炼，自动）→ mid（周级沉淀，自动）→ long（人工挑选）→ 知识库（人工归位）**
 
@@ -195,7 +201,7 @@ AI 读写 `.codebuddy/memory/` 的习惯完全不变（软链透明），但数�
 |---|---|---|
 | 知识 md | ✅ 不受影响（Git 管，环境重建 clone 回来） | 不变 |
 | `m78nas/projects/*.db`（索引+向量） | ⚠️ **环境重建即丢**，要 `m78 import` 重建；L0 无向量=秒级可接受，**升 L1 后向量要重算（10~50 分钟）** | db 真身在 NAS，重建环境软链回来即用 |
-| `m78nas/personal/`（个人库） | ⚠️ 环境重建即丢（gitignore 不进项目仓） | 真身在 NAS，不丢 |
+| `.codebuddy/memory`（个人流水） | ⚠️ 环境重建即丢（真身在 memory78 库内，属 Git 管） | 真身在 NAS，不丢 |
 
 ### 7.3 接入三途径（按可行性）
 
@@ -216,7 +222,7 @@ NAS 公网地址 + 协议（SMB/NFS）+ 端口 + 账号凭据。没有公网 NAS
 ### 用户做
 | # | 事项 | 说明 |
 |---|---|---|
-| 1 | 从 `system/wait/` 手动归位 21 条 | git mv + 改 front-matter + 更新清单页（SOP 见 §五） |
+| 1 | 从 `m78project/system/wait/` 手动归位 22 条 | git mv + 改 front-matter + 更新清单页（SOP 见 §五） |
 | 2 | NAS 选型：A 公网 / B 本地（§七） | 选 A 给连接信息 |
 | 3 | memo 敏感内容进 Git 的取舍 | 已在主仓（私有仓）；不接受则 gitignore memo |
 | 4 | 挑选 long 候选入知识库 | digest 跑起来之后 |
@@ -226,8 +232,8 @@ NAS 公网地址 + 协议（SMB/NFS）+ 端口 + 账号凭据。没有公网 NAS
 |---|---|---|
 | 5 | digest 过渡方案：收工时人工写 `short/当天.md` | 零开发，先跑通格式；等 LLM 配置定了再进 CLI |
 | 6 | `readme.md` 的 apisys 索引更新 | 「已有的 apisys」表还是旧的（aicode/steam/base…），应改为 product/vault/system |
-| 7 | `memory78-for-ai.md` / `SKILL.md` 同步 | wait 流程、daily 修复、m78nas 分级、digest 都没写进 AI 指南 |
-| 8 | 个人库启用配置 | `m78nas/personal/` 已建但空；ini 在 `~/.config`（环境重建会丢，**该加进 restore.sh**） |
+| 7 | `memory78-for-ai.md` / `SKILL.md` 同步 | wait 流程、daily 修复、个人/项目分流、digest 都没写进 AI 指南 |
+| 8 | 个人库启用配置 | `~/.config/memory78.ini` = `memory78/`，项目库 config = `m78project/`（环境重建会丢，**该加进 restore.sh**） |
 | 9 | short/mid/long 空目录加 `.gitkeep` | 让目录结构随 Git 分发 |
 
 ### 研发做（规格已出）
@@ -245,3 +251,5 @@ NAS 公网地址 + 协议（SMB/NFS）+ 端口 + 账号凭据。没有公网 NAS
 
 > 已完成：daily 钩子修复（始终写 md）、m78nas 目录与 db 软链、CLI import 五项修复、
 > memo 入 DB（16 条）、db 重建 26 条全对、规则 1.mdc 铁律、方案文档本身。
+> 2026-09-04 追加：个人/项目彻底分流（memory78=个人，m78project=项目），
+> 22 条项目知识与 product/database 子模块迁入 m78project，`.gitmodules` 同步更新 `a42fb99`。
