@@ -83,7 +83,8 @@ memory78_path = /workspace/m78project
 memory78_path = /workspace/memory78
 ```
 
-切换 = 换目录。`.gitignore`：`m78nas/`（整个只存 db）
+切换 = 换目录。`.gitignore`：db 真身在 `m78nas/`（**不入库**，运行时/ NAS 生成），
+记忆库内的 `memory78.db` 是**软链接占位（入 Git）**，clone 下来即有完整结构。
 
 ### 3.3 流程
 
