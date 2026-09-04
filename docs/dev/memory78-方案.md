@@ -149,15 +149,15 @@ md 是人可读的真身，db 只是索引。一行改动。
 m78project/system/static/
 ├── daily/     ← L0 原始流水（钩子自动，已在跑）
 ├── memo/      ← L0 AI 工作记忆真身（`.codebuddy/memory`，知识库内为软链）
-├── short/     ← L1 短期：m78 digest 自动提取（天级）
-├── mid/       ← L2 中期：m78 digest --mid 自动沉淀（周级，去重合并）
-└── long/      ← L3 长期候选：用户挑选 → 移入三级知识目录
+├── short/     ← L1 短期建议（**用户确认后** digest --apply 才写入）
+├── mid/       ← L2 中期建议（**用户确认后** digest --mid --apply 才写入）
+└── long/      ← L3 长期候选表（**用户挑选** → 手动移入三级知识目录）
 ```
 
 > 运行位在项目库 `m78project/`；个人/公共库 `memory78/` 也可复用同样分级，
 > 收集跨项目公共知识。
 
-漏斗：**raw（原文，自动）→ short（天级提炼，自动）→ mid（周级沉淀，自动）→ long（人工挑选）→ 知识库（人工归位）**
+漏斗：**raw（原文，自动）→ short（天级提炼，LLM 出建议，用户确认 --apply）→ mid（周级合并，LLM 出建议，用户确认 --apply）→ long（LLM 出候选表，用户挑选）→ 知识库（人工归位）**
 
 ### 6.3 AI 工作记忆（memo）通过 md 软链接入（本方案已落实）
 
@@ -173,19 +173,49 @@ m78project/system/static/
 - 🔴 依赖 m78 import 能跟随软链：import 需在扫描时 follow 软链，memo 内容才能进 DB（已实现，16 条正确导入）
 - db 反之**绝不入 Git**（见 §3.2）——软链接只有 md 记忆目录这一处
 
-### 6.4 命令：`m78 digest`（CLI 子命令，提给研发）
+### 6.4 命令：`m78 digest`（CLI 子命令）
 
-| 命令 | 功能 | 输出 |
-|---|---|---|
-| `m78 digest` | 分析 daily 近 N 天 + memo 近 N 天，LLM 提炼当天要点 | `system/static/short/YYYY-MM-DD.md` |
-| `m78 digest --mid` | 合并 short（去重，重复出现/未完结优先） | `system/static/mid/YYYY-Www.md` |
-| `m78 digest --long` | 从 mid/short 提炼长期候选清单 | `system/static/long/<日期>-<主题>.md` |
+#### ⚠️ 核心规则：**默认只出建议（preview），绝不写知识库！**
 
-- 提炼必须用 LLM（CLI 已有 QMD 的 LLM 通道可复用）
+`m78 digest` 系列命令**默认行为是打印到 stdout 或写到临时目录**，让用户看完、确认 OK 之后，
+再加 `--apply` 参数才会把结果落盘到 `system/static/short|mid|long/`。
+
+**为什么？**
+- 知识库的每一个 md 都是正式知识，不能被 AI 随意污染
+- AI 提炼的结果是**建议**，不是事实，必须人看过才算数
+- 流程是**一级一级确认**的：short OK 才 apply short，mid OK 才 apply mid
+
+#### 命令表
+
+| 命令 | 功能 | 默认输出 | --apply 后写入 |
+|---|---|---|---|
+| `m78 digest` | 分析 daily 近 N 天 + memo 近 N 天，LLM 提炼当天要点 | **stdout** | `system/static/short/YYYY-MM-DD.md` |
+| `m78 digest --mid` | 合并 short（去重，重复出现/未完结优先） | **stdout** | `system/static/mid/YYYY-Www.md` |
+| `m78 digest --long` | 从 mid/short 提炼长期候选表 | **stdout** | `system/static/long/YYYY-MM-DD-long-candidates.md` |
+
+#### 完整流程（一级一级确认）
+
+```
+Step 1: m78 digest --days 7                  # 出 short 建议 → 看一眼
+        └─ 觉得 OK？ → m78 digest --apply    # 落盘 short
+Step 2: m78 digest --mid                     # 出 mid 建议 → 看一眼
+        └─ 觉得 OK？ → m78 digest --mid --apply  # 落盘 mid
+Step 3: m78 digest --long                    # 出 long 候选表 → 人工挑
+        └─ 挑完 → 手动 git mv + 改 front-matter 归位
+```
+
+#### 其他参数
+
+- `--days N`：纳入分析的天数（short 默认 1，--mid 默认 14，--long 默认 30）
+- `--llm <path>`：LLM 可执行文件（默认 `claude`，需支持 `-p/--print` 非交互）
+- `--rule-only`：无 LLM 时的纯规则合并 fallback
+- `--preview-dir <path>`：把建议写到指定目录（而不是 stdout），便于 diff
+
+#### 约束
+
 - 每条提炼结果**必须带出处链接**（回指 daily/memo 原文），可回溯
-- 「自动」：钩子/会话开头检查 short 缺失自动补 + 收工生成（触发方式研发定）
-- long 里的条目由**用户挑选**，手动移入三级知识目录（走归位 SOP：git mv + 改 front-matter + 更新清单页）
-
+- **绝不自动 apply**：没有用户明确写的 `--apply`，任何情况下都不碰知识库目录
+- long 候选表里的条目**不会自动进知识库**，必须用户手动挑选归位
 ### 6.5 注意
 
 1. 🔴 **敏感内容会进 Git**：memo 里记录过服务器地址、凭据线索等。项目仓是私有仓（`NElephants/ehs-ai-agent`）
@@ -195,7 +225,30 @@ m78project/system/static/
 
 ---
 
-## 七、NAS 接入（未完成）
+## 七、NAS / 对象存储接入
+
+### 7.0 推荐：对象存储快照中转（当前落地首选）
+
+**原理**：db 始终在本地 `m78nas/` 里当 SQLite 正常跑（随机写没问题），对象存储只做**快照中转站**。
+
+```
+开机：ossutil cp oss://{bucket}/m78nas/snap-latest.tar . && tar xf snap-latest.tar -C /workspace/
+  ↓
+运行中：db 正常在本地 m78nas/*.db 读写（SQLite 随机写）
+  ↓
+收工时：tar cf m78nas-$(date +%Y%m%d%H%M).tar m78nas/ && ossutil cp m78nas-*.tar oss://{bucket}/m78nas/
+```
+
+**优势**：
+- ✅ 不需要 NAS 公网暴露、不需要 VPC 打通
+- ✅ 公网对象存储到处能访问（阿里云 OSS / 腾讯云 COS / 七牛 / MinIO 都行）
+- ✅ 成本极低（每月几毛钱到几块钱）
+- ✅ SQLite 随机写完全没问题，性能零损失
+- ✅ 快照天然带版本，拉错了可以翻历史
+
+**需要提供**：bucket 名 + 访问密钥（AK/SK，放到环境变量，不要硬编码）
+
+**AI 可做**：写 `m78nas-sync.sh` + 在 restore.sh 里自动开机拉取 + 定时 cron 推送
 
 ### 7.1 现状
 
@@ -214,13 +267,15 @@ m78project/system/static/
 
 | 途径 | 做法 | 适用 |
 |---|---|---|
-| **A. 公网可达的 NAS** | NAS 做公网映射/frp/Tailscale，云容器挂 SMB/NFS 到 `/mnt/nas`，`ln -s /mnt/nas/m78nas m78nas` | 唯一能让**云环境**用上真 NAS 的路 |
+| **A. 公网可达的 NAS** | NAS 做公网映射/frp/Tailscale，云容器挂 SMB/NFS 到 `/mnt/nas`，`ln -s /mnt/nas/m78nas m78nas` | 需要实时共享、多机同时写入时用 |
 | **B. 本地机器直连** | 办公室/家里机器挂 NAS，`m78nas` 放 NAS 上；**云环境不用 NAS**（db 每次重建） | 最省事；个人库 md 用私有 Git 仓多机同步 |
-| **C. ZOS 对象存储当中转** | 🔴 **SQLite 不能放对象存储**（对象接口无随机写）；只能放 db 快照包（tar），环境重建时拉包解压 | 兜底：给云环境保住"算好的向量" |
+| **C. 对象存储快照中转（✅ 推荐）** | db 始终在本地 `m78nas/` SQLite 正常读写（随机写无压力）；**定时整包同步**：开机从 OSS/COS/S3 拉 tar 快照到本地，收工时打 tar 推回对象存储 | ✅ **当前最优解**：不需要 NAS 公网暴露、不需要 VPC 打通、公网对象存储到处能访问、成本极低 |
 
-### 7.4 待你提供（选 A 时）
+### 7.4 待你提供
 
-NAS 公网地址 + 协议（SMB/NFS）+ 端口 + 账号凭据。没有公网 NAS 就选 B（现状已可用）。
+- 选 **A（公网 NAS）**：NAS 公网地址 + 协议（SMB/NFS）+ 端口 + 账号凭据
+- 选 **C（对象存储，推荐）**：对象存储 bucket 名 + 访问密钥（AK/SK，放进环境变量）
+- 选 **B（本地直连）**：什么都不用做，保持现状
 
 ---
 
