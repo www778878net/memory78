@@ -4,36 +4,43 @@
 
 ---
 
-## 1. 固定存储目录：`m78nas`
+## 1. 固定存储目录：`{项目根}/m78nas`（**已定稿**）
 
-**核心思路**：约定一个**固定目录名** `m78nas`。
-有 NAS 的就把它挂到 `/mnt/m78nas`，没有的就 `mkdir -p ~/.m78nas` ——
-**路径约定一致，有没有 NAS 只是真身在哪的区别，用法完全一样。**
+**目录名和位置都写死**：就放在**项目根目录下**，跟 `memory78/` 平级。
 
 ```
-/mnt/m78nas/                    ← 固定目录（NAS 挂载点；无 NAS 时用 ~/.m78nas）
-├── personal/                   ← 个人公共库真身（md + db 全在这里）
-│   ├── shared/                 ← 可共享（同步给项目库）
-│   ├── private/                ← 永不外传（本机路径、敏感线索）
-│   ├── wait/                   ← 待分类
-│   └── memory78.db
-└── projects/
-    ├── ehs-ai-agent.db         ← 各项目库的 db（md 留在项目里由 Git 管）
-    └── <其他项目>.db
+{项目根}/
+├── memory78/                   ← 知识库 md（Git 管）
+└── m78nas/                     ← 固定存储目录（db 等派生数据 + 个人库）
+    ├── README.md               ← 说明（进 Git）
+    ├── personal/               ← 个人公共库（md + db，不进项目仓）
+    │   ├── shared/             ← 可共享
+    │   ├── private/            ← 永不外传
+    │   ├── wait/               ← 待分类
+    │   └── memory78.db
+    └── projects/               ← 各项目库的 db
+        ├── ehs-ai-agent.db
+        └── <其他项目>.db
 ```
 
-本机软链：
+**有没有 NAS 都一样用，路径不变**：
+
+| 情况 | 怎么做 |
+|---|---|
+| **没有 NAS**（默认） | 就是一个普通本地目录，直接建 |
+| **有 NAS / 共享目录** | 把 `m78nas` 整个目录放到 NAS 上，再软链回来：<br>`ln -s /nas/share/m78nas m78nas` |
+| **云开发环境** | 目录跟着项目走，重建后从 Git 恢复结构，db 再同步 |
+
+项目库的 db 用软链挂过去：
 
 ```bash
-ln -s /mnt/m78nas/personal ~/memory78
-ln -s /mnt/m78nas/projects/ehs-ai-agent.db /workspace/memory78/memory78.db
+ln -s m78nas/projects/ehs-ai-agent.db memory78/memory78.db
 ```
 
-**为什么叫 `m78nas`**：`m78` 是 CLI 名，一眼知道是谁的；`nas` 直说用途；
-全小写无分隔符，Windows/SMB/rsync 都不会有转义麻烦。
+**为什么不放 `~/`**：`~/` 在云开发环境里每次重建就没了。放项目根目录下，
+跟着项目走；有 NAS 的时候换软链即可，**配置和用法完全不变**。
 
-> 容器等挂不了 NAS 的环境：照常 `mkdir -p ~/.m78nas` 建一个本地的，
-> 只是那份不共享；回到有 NAS 的机器重新指软链即可。
+**命名**：`m78` = CLI 名，`nas` = 用途；全小写无分隔符，Windows/SMB/rsync 都不会有转义麻烦。
 
 ---
 
@@ -142,13 +149,21 @@ m78 scan --fix
 
 ---
 
-## 6. 待确认三件事
+## 6. 已定 / 待办
 
-1. **目录名** `m78nas` 定不定？（备选 `78nas` / `m78-store`）
-2. **挂载点**：有 NAS 时统一挂 `/mnt/m78nas`；无 NAS 时用 `~/.m78nas` —— 可以这样约定吗
-3. **个人库 → 项目库要不要同步 md**：NAS 已经把个人库共享出去了，
-   若只是自己看就**不用同步**；只有"希望个人沉淀的通用知识进项目仓给团队看"时才需要，
-   那时把 `personal/shared/` 拷进项目库 `shared/` 即可（单向，项目库里别改）
+**已定**：
+1. 目录 `{项目根}/m78nas`（位置写死，有 NAS 就软链，路径不变）
+2. db 必须存（放 `m78nas`，否则 `embed build` 每次全量重算）
+3. 个人库 `m78nas/personal/`，项目库只把 db 放 `m78nas/projects/<项目>.db`
+
+**待办（有先后）**：
+
+| # | 事项 | 卡点 |
+|---|---|---|
+| 1 | `vault/` 下 4 个条目下沉一层 apiobj | 等选 A（现在改）或 B（等 CLI 读 front-matter） |
+| 2 | `m78 import` 修三处 | 研发排期（`import-cmd-patch.md`） |
+| 3 | 重建 `memory78.db` | 依赖 #2（或 #1 完成后用当前 CLI 也能建） |
+| 4 | 个人库 → 项目库同步 md | 可选；只是自己看就不用同步 |
 
 ---
 
