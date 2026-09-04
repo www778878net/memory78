@@ -95,14 +95,25 @@ m78 **没有 `--db` 参数**，也不做跨库搜索 —— 靠目录切就行�
 ```
 {项目根}/memory78/
 ├── system/wait/       ← AI 全写这里，扁平，人工从这里搬走
+├── system/static/daily/ ← 🔴 固定路径，钩子写死，不参与整理
 ├── product/           ← 正式分类（原 saas，2026-09-04 改名）
 │   └── database/      ← ⚠️ Git 子模块 = SQL schema 仓库，不是知识分类
+├── readme.md          ← 知识库自述，不参与整理
 └── vault/ product/ …  ← 正式分类
 ```
 
 ```bash
 m78 add "标题" "内容" system wait wait     # → memory78/system/wait/标题.md
 ```
+
+🔴 **不参与整理的固定路径**（整理时别碰）：
+
+| 路径 | 为什么 |
+|---|---|
+| `system/static/daily/` | 每日日志，钩子硬编码 `record_user_input.py: DAILY_DIR`；`m78 daily` 与钩子都往这写 |
+| `product/database/` | Git 子模块（databasesql.git），SQL schema 仓库 |
+| `readme.md` | 知识库自述 |
+| `memory78.db` / `models/` | 派生数据，不进 Git |
 
 **归位 SOP**：
 
@@ -113,8 +124,9 @@ git mv system/wait/vault__roles__vault-roles.md vault/roles/vault-roles.md
 m78 scan --fix
 ```
 
-**存量搬家**（2026-09-04 已执行）：29 个 md 全部拍平进 `system/wait/`，
+**存量搬家**（2026-09-04 已执行）：21 个知识 md 拍平进 `system/wait/`，
 路径分隔符转 `__`（如 `vault__roles__vault-roles.md`），从文件名就能看出原来在哪。
+🔴 `system/static/daily/` 的 8 个日志文件**不动**（钩子写死），一度误搬已还原。
 
 ---
 
