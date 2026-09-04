@@ -131,43 +131,54 @@ md 是人可读的真身，db 只是索引。一行改动。
 
 问题：AI 工作记忆存在 `.codebuddy/memory/`（CodeBuddy 平台约定目录），不在知识库里、不受知识库规则管。
 
-### 6.2 目标形态（用户设想）
+### 6.2 目标形态（已定稿）
+
+**全部在 `system/static/` 下**（与 daily 同级）：
 
 ```
-memory78/system/
-├── static/daily/     ← L0 原始流水（钩子自动，已在跑）
-├── memo/             ← AI 工作记忆真身（.codebuddy/memory 软链过来）
-├── short/            ← L1 短期：一个命令从 raw 自动提取（天级）★与 daily 同级
-├── mid/              ← L2 中期：短期自动沉淀（周级，去重合并）
-└── long/             ← L3 长期候选：用户挑选 → 移入三级知识目录
+memory78/system/static/
+├── daily/     ← L0 原始流水（钩子自动，已在跑）
+├── memo/      ← L0 AI 工作记忆真身（从 .codebuddy/memory 物理改进来）
+├── short/     ← L1 短期：m78 digest 自动提取（天级）
+├── mid/       ← L2 中期：m78 digest --mid 自动沉淀（周级，去重合并）
+└── long/      ← L3 长期候选：用户挑选 → 移入三级知识目录
 ```
 
 漏斗：**raw（原文，自动）→ short（天级提炼，自动）→ mid（周级沉淀，自动）→ long（人工挑选）→ 知识库（人工归位）**
 
-### 6.3 方案分析：方向对，但有 5 个点要先拍板
+### 6.3 memo 必须物理放知识库（不能软链）
 
-**对的地方**：
-- 与已有机制无缝衔接：daily 钩子（raw）已在跑；"用户挑选才入库"与你定的规则⑤⑦一致
-- 漏斗模型合理：raw 保留原文可回溯，short/mid 是提炼摘要，只有 long 才进知识库
-- 全程 md（人可读、进 Git），只有"入库"那一步才碰 db
+🔴 `m78 import` 的目录扫描（walkdir）**默认不跟随符号链接** ——
+`.codebuddy/memory` 若软链到知识库，内容**永远进不了 DB**。
 
-**要拍板的 5 个点**：
+正确做法（**物理改进来 + 反向软链**）：
 
-| # | 决策点 | 我的建议 |
+```
+真身：memory78/system/static/memo/          ← 物理（import 扫得到，进 DB，进 Git）
+反向：.codebuddy/memory → 指向上面的真身     ← 平台约定路径照常读写，写入即落知识库
+```
+
+AI 读写 `.codebuddy/memory/` 的习惯完全不变（软链透明），但数据真身在知识库里。
+
+### 6.4 命令：`m78 digest`（CLI 子命令，提给研发）
+
+| 命令 | 功能 | 输出 |
 |---|---|---|
-| 1 | `.codebuddy/memory` 怎么改到 memory78 | **软链**：`.codebuddy/memory` → `memory78/system/memo/`。真身进知识库跟 Git 走，平台约定路径不变（AI 照常读写）。❌ 不要物理搬走 —— 平台会按约定路径重新生成，变成两份 |
-| 2 | 目录命名 | `memo / short / mid / long`（英文，符合"文件名英文"规则） |
-| 3 | "一个命令"是什么 | 提炼必须用 LLM（纯脚本只能切关键词，不可用）。实现 = 一个 skill（如 `/m78-digest`）：读 daily 近 N 天 + memo 近 N 天 → 生成 `short/YYYY-MM-DD.md`。「自动」= 每次会话开头 AI 自检昨天缺了就补 + 收工时顺带生成 |
-| 4 | 中期怎么自动沉淀 | 定期（每周）把 short 里重复出现/未完结的合并成 `mid/YYYY-Www.md`；同一 skill 加参数（`/m78-digest --mid`） |
-| 5 | 长期候选放哪 | **B：独立 `system/long/`**（推荐，来源清晰：wait=AI 对话产生的待分类，long=记忆提炼的候选）；A：也丢 wait（统一关口，但两种来源混在一起） |
+| `m78 digest` | 分析 daily 近 N 天 + memo 近 N 天，LLM 提炼当天要点 | `system/static/short/YYYY-MM-DD.md` |
+| `m78 digest --mid` | 合并 short（去重，重复出现/未完结优先） | `system/static/mid/YYYY-Www.md` |
+| `m78 digest --long` | 从 mid/short 提炼长期候选清单 | `system/static/long/<日期>-<主题>.md` |
 
-### 6.4 风险与注意
+- 提炼必须用 LLM（CLI 已有 QMD 的 LLM 通道可复用）
+- 每条提炼结果**必须带出处链接**（回指 daily/memo 原文），可回溯
+- 「自动」：钩子/会话开头检查 short 缺失自动补 + 收工生成（触发方式研发定）
+- long 里的条目由**用户挑选**，手动移入三级知识目录（走归位 SOP：git mv + 改 front-matter + 更新清单页）
 
-1. 🔴 **敏感内容会进 Git**：memo（原 `.codebuddy/memory`）里记录过服务器地址、凭据线索等。
-   项目仓是私有仓（`NElephants/ehs-ai-agent`），能否接受要拍板；不能接受则 memo/ 不进 Git（单独 gitignore）
-2. **提炼是摘要不是原文**：short/mid 每条必须带出处链接（回指 daily/memo 原文），保证可回溯
-3. short/mid/long 都是 md，**不进 db**；只有"入知识库"才走 `m78 add` / import 流程
-4. 提炼去重：同一知识在多天 raw 里重复出现 → mid 合并时去重，标注首次/末次出现日期
+### 6.5 注意
+
+1. 🔴 **敏感内容会进 Git**：memo 里记录过服务器地址、凭据线索等。项目仓是私有仓（`NElephants/ehs-ai-agent`）
+2. daily/memo/short/mid/long 都在知识库目录内，`m78 import` 会扫到 —— 规格里需补充：
+   按 `system/static/` 下目录名打来源标签（daily/raw、short、mid、long），wait 同理
+3. 提炼去重：同一知识多天重复 → mid 合并时去重，标注首次/末次出现日期
 
 ---
 
@@ -176,9 +187,10 @@ memory78/system/
 | # | 事项 | 等谁 |
 |---|---|---|
 | 1 | 用户从 `system/wait/` 手动归位 21 条 | 用户 |
-| 2 | 记忆分级方案 §六 的 5 个拍板点 | 用户 |
-| 3 | `m78 import` 修三处（跳过 wait / 跳过子模块 / 读 front-matter） | 研发，规格 `import-cmd-patch.md` |
-| 4 | 重建 `memory78.db` | 依赖 #3 |
-| 5 | 个人库开始使用（`m78nas/personal/wait/`） | 随时 |
+| 2 | 实施记忆分级（§六）：memo 物理迁入 + 建 short/mid/long + 反向软链 | 用户点头即做 |
+| 3 | `m78 digest` 子命令（LLM 提炼，规格 §6.4） | 研发 |
+| 4 | `m78 import` 修三处 + 按目录打来源标签（§6.5-2） | 研发，规格 `import-cmd-patch.md` |
+| 5 | 重建 `memory78.db` | 依赖 #4 |
+| 6 | 个人库开始使用（`m78nas/personal/wait/`） | 随时 |
 
 > daily 钩子已修（始终写 md），`20260904.md` 已生成。
